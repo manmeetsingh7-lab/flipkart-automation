@@ -1,0 +1,1949 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flipkart SKU Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#07070f;--surface:#0e0e1a;--card:#141421;--border:#1f1f33;
+  --accent:#ff6b35;--a2:#00d4aa;--a3:#7b61ff;--a4:#ffd60a;--a5:#ff4d6d;
+  --text:#eeeef5;--muted:#55556e;--r:14px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;
+  background-image:radial-gradient(ellipse at 10% 5%,rgba(123,97,255,.06) 0%,transparent 50%),
+    radial-gradient(ellipse at 90% 90%,rgba(255,107,53,.05) 0%,transparent 50%);}
+/* HEADER */
+header{padding:1rem 2rem;border-bottom:1px solid var(--border);display:flex;
+  justify-content:space-between;align-items:center;background:rgba(8,8,18,.92);
+  backdrop-filter:blur(16px);position:sticky;top:0;z-index:300;}
+.logo{display:flex;align-items:center;gap:.65rem;}
+.logo-icon{width:32px;height:32px;border-radius:8px;
+  background:linear-gradient(135deg,var(--accent),var(--a3));
+  display:flex;align-items:center;justify-content:center;font-size:.95rem;}
+.logo h1{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;letter-spacing:-.02em;}
+.logo h1 span{color:var(--accent);}
+.hbadge{background:rgba(0,212,170,.1);border:1px solid rgba(0,212,170,.2);
+  color:var(--a2);padding:.2rem .6rem;border-radius:20px;font-size:.7rem;}
+.hdate{font-size:.7rem;color:var(--muted);}
+/* NAV */
+.nav{display:flex;padding:0 2rem;background:var(--surface);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  #nav::-webkit-scrollbar{display:none;}
+.nb{padding:.6rem 1.1rem;background:transparent;border:none;border-bottom:2px solid transparent;
+  color:var(--muted);font-size:.82rem;font-weight:500;cursor:pointer;white-space:nowrap;
+  font-family:'DM Sans',sans-serif;transition:all .2s;}
+.nb:hover{color:var(--text);}
+.nb.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(255,107,53,.05);}
+/* MAIN */
+.main{padding:1.5rem 2rem;max-width:1500px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:1.5rem;}
+@media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)!important;gap:.5rem!important;}}
+.sc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.15rem;position:relative;overflow:hidden;min-width:0;transition:transform .2s;}
+.sc:hover{transform:translateY(-2px);}
+.sc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sc:nth-child(1)::before{background:var(--accent);}
+.sc:nth-child(2)::before{background:var(--a2);}
+.sc:nth-child(3)::before{background:var(--a3);}
+.sc:nth-child(4)::before{background:var(--a4);}
+.sl{font-size:.67rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.25rem;}
+.sv{font-family:'Syne',sans-serif;font-size:1.8rem;font-weight:800;line-height:1;word-break:break-word;}
+.sc:nth-child(1) .sv{color:var(--accent);}
+.sc:nth-child(2) .sv{color:var(--a2);}
+.sc:nth-child(3) .sv{color:var(--a3);}
+.sc:nth-child(4) .sv{color:var(--a4);}
+.ss{font-size:.7rem;color:var(--muted);margin-top:.25rem;}
+/* SEARCH */
+.search-section{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.5rem;margin-bottom:1.25rem;}
+.search-title{font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:1rem;color:var(--muted);}
+.search-bar{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;}
+.search-input{flex:1;min-width:250px;background:var(--surface);border:2px solid var(--border);
+  border-radius:10px;padding:.65rem 1rem;color:var(--text);font-size:.9rem;
+  font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;}
+.search-input:focus{border-color:var(--accent);}
+.search-input::placeholder{color:var(--muted);}
+.search-btn{padding:.65rem 1.5rem;background:var(--accent);border:none;border-radius:10px;
+  color:#fff;font-size:.85rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:opacity .2s;white-space:nowrap;}
+.search-btn:hover{opacity:.85;}
+.clear-btn{padding:.65rem 1rem;background:transparent;border:1px solid var(--border);border-radius:10px;
+  color:var(--muted);font-size:.85rem;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.clear-btn:hover{border-color:var(--a5);color:var(--a5);}
+/* SEARCH RESULTS */
+.results-list{margin-top:1rem;display:flex;flex-direction:column;gap:.5rem;max-height:280px;overflow-y:auto;}
+.result-item{display:flex;justify-content:space-between;align-items:center;
+  padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);
+  border-radius:10px;cursor:pointer;transition:all .2s;}
+.result-item:hover{border-color:var(--accent);background:rgba(255,107,53,.05);}
+.result-item.selected{border-color:var(--accent);background:rgba(255,107,53,.08);}
+.ri-left{display:flex;flex-direction:column;gap:.2rem;}
+.ri-sku{font-size:.72rem;color:var(--accent);font-weight:600;font-family:'Syne',sans-serif;}
+.ri-name{font-size:.82rem;color:var(--text);font-weight:500;}
+.ri-meta{font-size:.7rem;color:var(--muted);}
+.ri-right{display:flex;gap:1rem;align-items:center;flex-shrink:0;}
+.ri-stat{text-align:right;}
+.ri-stat .val{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:700;}
+.ri-stat .lbl{font-size:.65rem;color:var(--muted);}
+.no-results{text-align:center;padding:2rem;color:var(--muted);font-size:.85rem;}
+/* SKU DETAIL */
+.sku-detail{display:none;}
+.sku-detail.show{display:block;}
+.sku-header{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.25rem 1.5rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:flex-start;}
+.sku-info .sku-id{font-size:.75rem;color:var(--accent);font-weight:700;font-family:'Syne',sans-serif;margin-bottom:.3rem;}
+.sku-info .sku-name{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;margin-bottom:.35rem;line-height:1.3;}
+.sku-info .sku-meta{font-size:.78rem;color:var(--muted);}
+.back-btn{padding:.5rem 1rem;background:transparent;border:1px solid var(--border);
+  border-radius:8px;color:var(--muted);font-size:.78rem;cursor:pointer;
+  font-family:'DM Sans',sans-serif;transition:all .2s;white-space:nowrap;}
+.back-btn:hover{border-color:var(--accent);color:var(--accent);}
+/* CHARTS */
+.crow{display:grid;gap:1rem;margin-bottom:1rem;}
+.c2{grid-template-columns:1fr 1fr;}.c1{grid-template-columns:1fr;}
+.cc{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;}
+.ct{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;margin-bottom:.9rem;display:flex;align-items:center;gap:.4rem;}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+canvas{max-height:220px;}
+/* DAY TABLE */
+.day-table-wrap{overflow:auto;max-height:320px;margin-top:.5rem;}
+table{width:100%;border-collapse:collapse;font-size:.8rem;}
+th{background:var(--surface);color:var(--muted);padding:.55rem .85rem;text-align:left;
+  font-weight:500;text-transform:uppercase;letter-spacing:.05em;font-size:.67rem;
+  position:sticky;top:0;white-space:nowrap;}
+td{padding:.55rem .85rem;border-bottom:1px solid rgba(255,255,255,.03);white-space:nowrap;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.up{color:var(--a2);font-weight:600;}.dn{color:var(--a5);font-weight:600;}
+.neutral{color:var(--muted);}
+/* TOP 10 TABLE */
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;}
+.tt{display:flex;justify-content:space-between;align-items:center;margin-bottom:.9rem;flex-wrap:wrap;gap:.5rem;}
+.srch{background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:.35rem .75rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;
+  outline:none;width:200px;}
+.srch:focus{border-color:var(--accent);}
+.tw{overflow:auto;max-height:420px;}
+.sth{cursor:pointer;user-select:none;position:relative;padding-right:1.4rem!important;}
+.sth:hover{color:var(--text);}
+.sth::after{content:'⇅';position:absolute;right:.3rem;opacity:.2;font-size:.65rem;top:50%;transform:translateY(-50%);}
+.sth:hover::after{opacity:.6;}
+.sth.asc::after{content:'▲';color:var(--accent);opacity:1;}
+.sth.desc::after{content:'▼';color:var(--accent);opacity:1;}
+.bdg{display:inline-block;padding:1px 7px;border-radius:20px;font-size:.68rem;font-weight:600;}
+.g{background:rgba(0,212,170,.12);color:var(--a2);}
+.o{background:rgba(255,107,53,.12);color:var(--accent);}
+/* BRAND CARDS */
+.brand-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.85rem;margin-bottom:1.25rem;}
+.bcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:1.1rem;transition:all .2s;cursor:pointer;}
+.bcard:hover{transform:translateY(-2px);border-color:var(--accent);}
+.bname{font-family:'Syne',sans-serif;font-size:.95rem;font-weight:800;margin-bottom:.6rem;color:var(--accent);}
+.bstats{display:flex;flex-direction:column;gap:.3rem;}
+.bst{display:flex;justify-content:space-between;font-size:.78rem;}
+.bst span{color:var(--muted);}.bst strong{color:var(--text);}
+/* LOADING */
+.loading{text-align:center;padding:5rem;color:var(--muted);}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 1rem;}
+@keyframes spin{to{transform:rotate(360deg);}}
+footer{text-align:center;padding:1rem;color:var(--muted);font-size:.68rem;
+  border-top:1px solid var(--border);margin-top:1.5rem;}
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .c2{grid-template-columns:1fr;}
+  header,.main,.nav{padding:.85rem;}
+  .nav{padding:0 .85rem;}
+}
+@media(max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)!important;gap:.5rem!important;}
+  .inv-stats{grid-template-columns:repeat(2,1fr)!important;gap:.5rem!important;margin-bottom:.5rem!important;}
+  .tva-stats{grid-template-columns:repeat(2,1fr)!important;gap:.5rem!important;}
+  .crow.c2,.crow.c3,.crow.c4{grid-template-columns:1fr!important;}
+  .sv{font-size:1.3rem!important;word-break:break-word!important;white-space:normal!important;overflow:visible!important;text-overflow:unset!important;}
+  .sl{font-size:.6rem!important;}
+  .ss{font-size:.62rem!important;}
+  #main{padding:.5rem!important;}
+  .tcard{padding:.65rem!important;overflow:hidden!important;}
+  .tt{flex-direction:column!important;gap:.5rem!important;align-items:flex-start!important;}
+  .tw{overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;max-width:100%!important;}
+  .nb{font-size:.68rem!important;padding:.4rem .55rem!important;}
+  table{font-size:.68rem!important;min-width:480px!important;}
+  th,td{padding:.22rem .3rem!important;white-space:nowrap!important;}
+  .sc{padding:.65rem!important;min-width:0!important;overflow:hidden!important;}
+  .hb{font-size:.9rem!important;}
+  .srch{width:100%!important;max-width:none!important;box-sizing:border-box!important;}
+  select{font-size:.72rem!important;}
+  #header{padding:.5rem .75rem!important;}
+  .page{padding:.5rem!important;}
+  .cc{padding:.75rem!important;}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">
+    <div class="logo-icon">📦</div>
+    <h1>Flipkart <span>SKU</span> Dashboard</h1>
+  </div>
+  <div style="display:flex;align-items:center;gap:.9rem;">
+    <span class="hbadge">🟢 Live</span>
+    <span class="hdate" id="genTime"></span>
+  </div>
+</header>
+<div class="nav">
+  <button class="nb active" data-pg="overview" onclick="show(this.dataset.pg,this)">📊 Overview</button>
+  <button class="nb" data-pg="sku"      onclick="show(this.dataset.pg,this)">🔍 SKU Search</button>
+  <button class="nb" data-pg="topskus"  onclick="show(this.dataset.pg,this)">🏆 Top SKUs</button>
+  <button class="nb" data-pg="brands"   onclick="show(this.dataset.pg,this)">🏷️ Brands</button>
+  <button class="nb" data-pg="datewise"  onclick="show(this.dataset.pg,this)">📅 Date Wise</button>
+  <button class="nb" data-pg="deadstock" onclick="show(this.dataset.pg,this)">💀 Dead Stock</button>
+  <button class="nb" data-pg="discount"  onclick="show(this.dataset.pg,this)">🏷️ Discount</button>
+  <button class="nb" data-pg="targetvs"  onclick="show(this.dataset.pg,this)">🎯 Target vs Actual</button>
+  <button class="nb" data-pg="rpu"       onclick="show(this.dataset.pg,this)">💰 RPU</button>
+  <button class="nb" data-pg="bestday"   onclick="show(this.dataset.pg,this)">📆 Best Day</button>
+  <button class="nb" data-pg="inventory"  onclick="show(this.dataset.pg,this)">📦 Inventory</button>
+  <button class="nb" data-pg="executive"  onclick="show(this.dataset.pg,this)">📊 Summary</button>
+  <button class="nb" data-pg="forecast"   onclick="show(this.dataset.pg,this)">📈 Forecast</button>
+</div>
+<div class="main">
+
+<!-- OVERVIEW -->
+<div id="overview" class="page active">
+  <div class="loading"><div class="spinner"></div>Loading dashboard...</div>
+</div>
+
+<!-- SKU SEARCH -->
+<div id="sku" class="page">
+  <div class="search-section">
+    <div class="search-title">🔍 Search by SKU ID or Product Name</div>
+    <div class="search-bar">
+      <input class="search-input" id="skuInput" type="text"
+        placeholder="e.g. PGK-HGM100 or Pilgrim Sunscreen..."
+        oninput="onSearch(this.value)">
+      <button class="clear-btn" onclick="clearSearch()">✕ Clear</button>
+    </div>
+    <div id="searchResults"></div>
+  </div>
+  <!-- SKU Detail Panel -->
+  <div class="sku-detail" id="skuDetail"></div>
+</div>
+
+<!-- TOP SKUs -->
+<div id="topskus" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- BRANDS -->
+<div id="brands" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- DEAD STOCK -->
+<div id="deadstock" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- RPU -->
+<div id="rpu" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- BEST DAY -->
+<div id="bestday" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- DISCOUNT -->
+<div id="discount" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- TARGET VS ACTUAL -->
+<div id="targetvs" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+<!-- DATE WISE -->
+<div id="datewise" class="page">
+  <div class="loading"><div class="spinner"></div>Loading...</div>
+</div>
+
+  <div id="inventory"  class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+  <div id="executive"  class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+  <div id="forecast"   class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+</div>
+<footer id="footer">Flipkart SKU Dashboard</footer>
+
+<script>
+const GC='#1a1a2e', TC='#55556e';
+let D=null, CH={}, RECS=[], SKUS=[];
+
+function fN(n){return Math.round(+n).toLocaleString('en-IN');}
+function fR(n){
+  n=+n;
+  if(n>=1e7) return '₹'+(n/1e7).toFixed(2)+'Cr';
+  if(n>=1e5) return '₹'+(n/1e5).toFixed(2)+'L';
+  return '₹'+Math.round(n).toLocaleString('en-IN');
+}
+function fP(n){return n>0?'+'+fN(n):fN(n);}
+
+const SL={x:{ticks:{color:TC,font:{size:10}},grid:{color:GC}},y:{ticks:{color:TC,callback:v=>fN(v)},grid:{color:GC}}};
+
+function mkLine(id,labels,datasets){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  if(CH[id]){CH[id].destroy();delete CH[id];}
+  CH[id]=new Chart(ctx,{type:'line',data:{labels,datasets},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{display:datasets.length>1,labels:{color:TC,font:{size:9},boxWidth:10}}},
+      scales:SL}});
+}
+function mkBar(id,labels,data,color){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  if(CH[id]){CH[id].destroy();delete CH[id];}
+  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:color+'bb',borderColor:color,borderWidth:1,borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:SL}});
+}
+function mkHBar(id,labels,data,colors){
+  const ctx=document.getElementById(id);if(!ctx)return;
+  if(CH[id]){CH[id].destroy();delete CH[id];}
+  CH[id]=new Chart(ctx,{type:'bar',data:{labels,datasets:[{data,backgroundColor:colors||'#ff6b35bb',borderWidth:0,borderRadius:4}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{color:TC,callback:v=>fN(v)},grid:{color:GC}},y:{ticks:{color:TC,font:{size:10}},grid:{color:'transparent'}}}}});
+}
+
+// ── OVERVIEW ──
+function buildOverview(){
+  document.getElementById('overview').innerHTML=`
+    <div class="stats">
+      <div class="sc"><div class="sl">Total Units Sold</div><div class="sv">${fN(D.total_units)}</div><div class="ss">Across all SKUs</div></div>
+      <div class="sc"><div class="sl">Total Revenue</div><div class="sv">${fR(D.total_revenue)}</div><div class="ss">Gross revenue</div></div>
+      <div class="sc"><div class="sl">Avg Selling Price</div><div class="sv">${fR(D.avg_asp)}</div><div class="ss">Overall ASP</div></div>
+      <div class="sc"><div class="sl">Total SKUs</div><div class="sv">${fN(D.total_skus)}</div><div class="ss">Active products</div></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Daily Units Sold</div><canvas id="ovU"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Daily Revenue</div><canvas id="ovR"></canvas></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a3)"></span>Top 10 SKUs — Units Sold</div><canvas id="ovT"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a4)"></span>Daily Avg Selling Price</div><canvas id="ovA"></canvas></div>
+    </div>`;
+  setTimeout(()=>{
+    mkLine('ovU',D.dates,[{label:'Units',data:D.date_units,borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.1)',fill:true,tension:.4}]);
+    mkLine('ovR',D.dates,[{label:'Revenue',data:D.date_revenue,borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,.1)',fill:true,tension:.4}]);
+    const top10=SKUS.slice(0,10);
+    mkHBar('ovT',top10.map(s=>s.sku),top10.map(s=>s.total_units));
+    mkLine('ovA',D.dates,[{label:'ASP',data:D.date_asp,borderColor:'#ffd60a',backgroundColor:'rgba(255,214,10,.1)',fill:true,tension:.4}]);
+  },50);
+}
+
+// ── SKU SEARCH ──
+function onSearch(q){
+  if(!q||q.length<2){document.getElementById('searchResults').innerHTML='';return;}
+  q=q.toLowerCase();
+  const matches=SKUS.filter(s=>s.sku.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)).slice(0,20);
+  if(!matches.length){
+    document.getElementById('searchResults').innerHTML='<div class="no-results">No SKUs found. Try a different search term.</div>';
+    return;
+  }
+  document.getElementById('searchResults').innerHTML=`
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:.5rem;">${matches.length} result(s) found — click to view details</div>
+    <div class="results-list">
+      ${matches.map(s=>`
+        <div class="result-item" onclick="showSKU('${s.sku}')">
+          <div class="ri-left">
+            <div class="ri-sku">${s.sku}</div>
+            <div class="ri-name">${s.name.slice(0,60)}${s.name.length>60?'...':''}</div>
+            <div class="ri-meta">${s.brand} · ${s.category}</div>
+          </div>
+          <div class="ri-right">
+            <div class="ri-stat">
+              <div class="val" style="color:var(--accent)">${fN(s.total_units)}</div>
+              <div class="lbl">Units</div>
+            </div>
+            <div class="ri-stat">
+              <div class="val" style="color:var(--a2)">${fR(s.total_revenue)}</div>
+              <div class="lbl">Revenue</div>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function clearSearch(){
+  document.getElementById('skuInput').value='';
+  document.getElementById('searchResults').innerHTML='';
+  document.getElementById('skuDetail').className='sku-detail';
+}
+
+function showSKU(skuId){
+  const s=SKUS.find(x=>x.sku===skuId);
+  if(!s)return;
+
+  // Mark selected
+  document.querySelectorAll('.result-item').forEach(el=>el.classList.remove('selected'));
+  const items=document.querySelectorAll('.result-item');
+  items.forEach(el=>{if(el.querySelector('.ri-sku')?.textContent===skuId)el.classList.add('selected');});
+
+  // Build day-wise table with trend arrows
+  const dayRows=D.dates.map((date,i)=>{
+    const dd=s.daily[i];
+    const prev=i>0?s.daily[i-1]:null;
+    const uTrend=prev?dd.units>prev.units?'up':dd.units<prev.units?'dn':'neutral':'neutral';
+    const rTrend=prev?dd.revenue>prev.revenue?'up':dd.revenue<prev.revenue?'dn':'neutral':'neutral';
+    const uDiff=prev?dd.units-prev.units:0;
+    const rDiff=prev?dd.revenue-prev.revenue:0;
+    const disc=D.products&&s.mrp>0&&dd.asp>0?Math.round(((s.mrp-dd.asp)/s.mrp)*100):0;
+    const discCls=disc>=40?'color:var(--a5)':disc>0&&disc<15?'color:var(--a2)':'color:var(--muted)';
+    return `<tr>
+      <td><strong>${date}</strong></td>
+      <td><strong>${fN(dd.units)}</strong> ${prev?`<span class="${uTrend}" style="font-size:.7rem">${uTrend==='up'?'▲':'▼'} ${Math.abs(uDiff)}</span>`:'—'}</td>
+      <td><strong>${fR(dd.revenue)}</strong> ${prev?`<span class="${rTrend}" style="font-size:.7rem">${rTrend==='up'?'▲':'▼'} ${fR(Math.abs(rDiff))}</span>`:'—'}</td>
+      <td>${s.mrp>0?fR(s.mrp):'—'}</td>
+      <td>${dd.asp>0?fR(dd.asp):'—'}</td>
+      <td>${disc>0?`<span style="font-size:.75rem;font-weight:700;${discCls}">${disc}%</span>`:'—'}</td>
+      <td>${dd.cvr>0?dd.cvr+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('skuDetail').innerHTML=`
+    <div class="sku-header">
+      <div class="sku-info">
+        <div class="sku-id">SKU: ${s.sku}</div>
+        <div class="sku-name">${s.name}</div>
+        <div class="sku-meta">${s.brand} · ${s.category} · ${s.vertical}</div>
+      </div>
+      <button class="back-btn" onclick="document.getElementById('skuDetail').className='sku-detail'">✕ Close</button>
+    </div>
+    <div class="stats">
+      <div class="sc"><div class="sl">Total Units Sold</div><div class="sv">${fN(s.total_units)}</div><div class="ss">All days combined</div></div>
+      <div class="sc"><div class="sl">Total Revenue</div><div class="sv">${fR(s.total_revenue)}</div><div class="ss">Gross revenue</div></div>
+      <div class="sc"><div class="sl">MRP</div><div class="sv">${s.mrp>0?fR(s.mrp):'—'}</div><div class="ss">Max Retail Price</div></div>
+      <div class="sc"><div class="sl">Avg Discount</div><div class="sv" style="color:${s.disc>=40?'var(--a5)':s.disc<15?'var(--a2)':'var(--accent)'}">${s.disc>0?s.disc+'%':'—'}</div><div class="ss">vs MRP</div></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Daily Units Sold</div><canvas id="skuU"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Daily Revenue</div><canvas id="skuR"></canvas></div>
+    </div>
+    <div class="cc" style="margin-bottom:1rem;">
+      <div class="ct"><span class="dot" style="background:var(--a4)"></span>Day-by-Day Performance</div>
+      <div class="day-table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Units Sold</th><th>Revenue</th><th>MRP</th><th>ASP</th><th>Discount %</th><th>CVR</th></tr></thead>
+          <tbody>${dayRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+
+  document.getElementById('skuDetail').className='sku-detail show';
+
+  setTimeout(()=>{
+    mkLine('skuU',D.dates,[{label:'Units',data:s.daily.map(d=>d.units),borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.12)',fill:true,tension:.4,pointRadius:5,pointHoverRadius:7}]);
+    mkLine('skuR',D.dates,[{label:'Revenue',data:s.daily.map(d=>d.revenue),borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,.12)',fill:true,tension:.4,pointRadius:5,pointHoverRadius:7}]);
+  },50);
+
+  document.getElementById('skuDetail').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── TOP SKUs ──
+function buildTopSKUs(){
+  const dmin=D.dates[0], dmax=D.dates[D.dates.length-1];
+  document.getElementById('topskus').innerHTML=`
+    <div class="tcard">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">🏆 All SKUs Ranked by Units Sold</div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+          <input class="srch" id="topSrch" placeholder="🔍 Search SKU..." oninput="renderTopTable()">
+        </div>
+      </div>
+      <div style="margin-bottom:1.1rem;padding:1rem 1.1rem;background:var(--surface);border-radius:12px;border:1px solid var(--border);">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:.65rem;">📅 Filter by Date</div>
+        <!-- Tooltip element -->
+        <div id="weekTooltip" style="display:none;position:fixed;z-index:999;background:#1a1a2e;border:1px solid var(--accent);border-radius:8px;padding:.5rem .85rem;font-size:.72rem;color:var(--text);pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.5);"></div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.85rem;" id="topDatePills">
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;border:1px solid var(--accent);background:rgba(255,107,53,.15);color:var(--accent);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="all" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'all')" onmouseleave="hideWeekTip()">All Days</button>
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="week1" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'week1')" onmouseleave="hideWeekTip()">Week 1</button>
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="week2" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'week2')" onmouseleave="hideWeekTip()">Week 2</button>
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="week3" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'week3')" onmouseleave="hideWeekTip()">Week 3</button>
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="week4" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'week4')" onmouseleave="hideWeekTip()">Week 4</button>
+          <button style="padding:.35rem .85rem;border-radius:20px;font-size:.75rem;font-weight:500;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;transition:all .2s;" data-date="month" onclick="topQuickDate(this)" onmouseenter="showWeekTip(event,'month')" onmouseleave="hideWeekTip()">Full Month</button>
+        </div>
+        <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+          <span style="font-size:.7rem;color:var(--muted);letter-spacing:.05em;">CUSTOM RANGE</span>
+          <input type="date" id="topFrom" value="${dmin}" min="${dmin}" max="${dmax}"
+            style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.35rem .65rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <span style="color:var(--muted);font-size:.8rem;">→</span>
+          <input type="date" id="topTo" value="${dmax}" min="${dmin}" max="${dmax}"
+            style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.35rem .65rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .2s;"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <button onclick="topApplyCustom()"
+            style="padding:.35rem 1rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:.78rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .2s;"
+            onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">Apply</button>
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem;" id="topFilterLabel"></div>
+      <div class="tw">
+        <table id="topTable">
+          <thead><tr>
+            <th class="sth" data-key="rank">Rank</th>
+            <th class="sth" data-key="sku">SKU ID</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="f_units">Units Sold</th>
+            <th class="sth" data-key="f_revenue">Revenue</th>
+            <th class="sth" data-key="f_asp">ASP</th>
+            <th class="sth" data-key="f_cvr">CVR</th>
+            <th></th>
+          </tr></thead>
+          <tbody id="topTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderTopTable();
+  setupTableSort('topTable',(k,d)=>renderTopTable(k,d));
+}
+
+let topDateMode='all';
+
+function getWeekDates(mode){
+  if(!D) return '';
+  const dates=D.dates;
+  if(mode==='all') return dates[0]+' → '+dates[dates.length-1]+' ('+dates.length+' days)';
+  if(mode==='month') return dates[0]+' → '+dates[dates.length-1]+' ('+dates.length+' days)';
+  const ranges={week1:[0,6],week2:[7,13],week3:[14,20],week4:[21,dates.length-1]};
+  const r=ranges[mode];
+  if(!r) return '';
+  const start=dates[r[0]]||'';
+  const end=dates[Math.min(r[1],dates.length-1)]||'';
+  const count=Math.min(r[1],dates.length-1)-r[0]+1;
+  return start+' → '+end+' ('+count+' days)';
+}
+
+function showWeekTip(e, mode){
+  const tip=document.getElementById('weekTooltip');
+  if(!tip) return;
+  const labels={all:'All Days',week1:'Week 1',week2:'Week 2',week3:'Week 3',week4:'Week 4',month:'Full Month'};
+  const dates=getWeekDates(mode);
+  tip.innerHTML='<strong style="color:var(--accent)">'+labels[mode]+'</strong><br>📅 '+dates;
+  tip.style.display='block';
+  tip.style.left=(e.clientX+12)+'px';
+  tip.style.top=(e.clientY-45)+'px';
+}
+
+function hideWeekTip(){
+  const tip=document.getElementById('weekTooltip');
+  if(tip) tip.style.display='none';
+}
+
+function topQuickDate(btn){
+  topDateMode=btn.dataset.date;
+  document.querySelectorAll('#topDatePills button').forEach(b=>{
+    b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';
+  });
+  btn.style.background='rgba(255,107,53,.15)';btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';
+  renderTopTable();
+}
+function topApplyCustom(){
+  topDateMode='custom';
+  document.querySelectorAll('#topDatePills button').forEach(b=>{
+    b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';
+  });
+  renderTopTable();
+}
+
+function getTopFilteredSKUs(){
+  const from=document.getElementById('topFrom')?.value;
+  const to=document.getElementById('topTo')?.value;
+  return SKUS.map(s=>{
+    let dateIdxs=[];
+    if(topDateMode==='all'||topDateMode==='month'){
+      dateIdxs=D.dates.map((_,i)=>i);
+    } else if(topDateMode==='custom'){
+      dateIdxs=D.dates.map((d,i)=>d>=from&&d<=to?i:-1).filter(i=>i>=0);
+    } else if(topDateMode==='week1'){
+      dateIdxs=D.dates.map((_,i)=>i<7?i:-1).filter(i=>i>=0);
+    } else if(topDateMode==='week2'){
+      dateIdxs=D.dates.map((_,i)=>i>=7&&i<14?i:-1).filter(i=>i>=0);
+    } else if(topDateMode==='week3'){
+      dateIdxs=D.dates.map((_,i)=>i>=14&&i<21?i:-1).filter(i=>i>=0);
+    } else if(topDateMode==='week4'){
+      dateIdxs=D.dates.map((_,i)=>i>=21?i:-1).filter(i=>i>=0);
+    }
+    const units   = dateIdxs.reduce((sum,i)=>sum+(s.daily[i]?s.daily[i].units||s.daily[i][0]||0:0),0);
+    const revenue = dateIdxs.reduce((sum,i)=>sum+(s.daily[i]?s.daily[i].revenue||s.daily[i][1]||0:0),0);
+    const aspVals = dateIdxs.map(i=>s.daily[i]?s.daily[i].asp||s.daily[i][2]||0:0).filter(v=>v>0);
+    const cvrVals = dateIdxs.map(i=>s.daily[i]?s.daily[i].cvr||s.daily[i][3]||0:0).filter(v=>v>0);
+    const avg_asp = aspVals.length?round2(aspVals.reduce((a,b)=>a+b,0)/aspVals.length):0;
+    const avg_cvr = cvrVals.length?round2(cvrVals.reduce((a,b)=>a+b,0)/cvrVals.length):0;
+    return {...s, f_units:units, f_revenue:revenue, f_asp:avg_asp, f_cvr:avg_cvr};
+  }).sort((a,b)=>b.f_units-a.f_units);
+}
+function round2(n){return Math.round(n*100)/100;}
+
+let topSortKey='f_units', topSortDir=-1;
+function renderTopTable(sortKey, sortDir){
+  if(sortKey){topSortKey=sortKey;topSortDir=sortDir;}
+  const q=(document.getElementById('topSrch')?.value||'').toLowerCase();
+  let rows=getTopFilteredSKUs().filter(s=>!q||s.sku.toLowerCase().includes(q)||s.name.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[topSortKey],bv=b[topSortKey];
+    if(typeof av==='number') return (av-bv)*topSortDir;
+    return String(av||'').localeCompare(String(bv||''))*topSortDir;
+  });
+  const label=document.getElementById('topFilterLabel');
+  if(label){
+    const from=document.getElementById('topFrom')?.value;
+    const to=document.getElementById('topTo')?.value;
+    const period=topDateMode==='all'?'All Days':topDateMode==='custom'?`${from} → ${to}`:topDateMode;
+    label.textContent=`Showing ${rows.length} SKUs · Period: ${period}`;
+  }
+  document.getElementById('topTbody').innerHTML=rows.slice(0,100).map((s,i)=>`<tr>
+    <td><strong style="color:var(--muted)">${i+1}</strong></td>
+    <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${s.sku}</span></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${s.name}">${s.name.slice(0,35)}${s.name.length>35?'...':''}</td>
+    <td>${s.brand}</td>
+    <td><strong>${fN(s.f_units)}</strong></td>
+    <td>${fR(s.f_revenue)}</td>
+    <td>${s.f_asp>0?fR(s.f_asp):'—'}</td>
+    <td><span class="bdg ${s.f_cvr>=2?'g':'o'}">${s.f_cvr}%</span></td>
+    <td><button style="padding:.2rem .6rem;background:rgba(255,107,53,.1);border:1px solid var(--accent);border-radius:6px;color:var(--accent);font-size:.7rem;cursor:pointer" onclick="goToSKU('${s.sku}')">View</button></td>
+  </tr>`).join('');
+}
+function goToSKU(skuId){
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nb')[1].classList.add('active');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('sku').classList.add('active');
+  document.getElementById('skuInput').value=skuId;
+  onSearch(skuId);
+  setTimeout(()=>showSKU(skuId),100);
+}
+
+// ── BRANDS ──
+function buildBrands(){
+  document.getElementById('brands').innerHTML=`
+    <div class="brand-grid" id="brandGrid"></div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Units Sold by Brand</div><canvas id="brU"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Revenue by Brand</div><canvas id="brR"></canvas></div>
+    </div>`;
+  document.getElementById('brandGrid').innerHTML=D.brand_summary.map(b=>`
+    <div class="bcard">
+      <div class="bname">${b.brand}</div>
+      <div class="bstats">
+        <div class="bst"><span>Units Sold</span><strong>${fN(b.units)}</strong></div>
+        <div class="bst"><span>Revenue</span><strong>${fR(b.revenue)}</strong></div>
+        <div class="bst"><span>Active SKUs</span><strong>${b.skus}</strong></div>
+      </div>
+    </div>`).join('');
+  setTimeout(()=>{
+    mkHBar('brU',D.brand_summary.map(b=>b.brand),D.brand_summary.map(b=>b.units));
+    mkHBar('brR',D.brand_summary.map(b=>b.brand),D.brand_summary.map(b=>b.revenue),'#00d4aabb');
+  },50);
+}
+
+// ── DATE WISE ──
+function buildDatewise(){
+  const brands = ['All Brands', ...D.brands];
+  document.getElementById('datewise').innerHTML=`
+    <!-- Brand Filter -->
+    <div style="display:flex;align-items:center;gap:.75rem;margin-bottom:1rem;padding:.75rem 1rem;background:var(--surface);border-radius:10px;border:1px solid var(--border);flex-wrap:wrap;">
+      <span style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;">🏷️ Filter by Brand</span>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;" id="dwBrandPills">
+        ${brands.map((b,i)=>`<button
+          style="padding:.35rem .9rem;border-radius:20px;font-size:.75rem;font-weight:600;cursor:pointer;border:1px solid ${i===0?'var(--accent)':'var(--border)'};background:${i===0?'rgba(255,107,53,.15)':'transparent'};color:${i===0?'var(--accent)':'var(--muted)'};font-family:'DM Sans',sans-serif;transition:all .2s;"
+          data-brand="${b}" onclick="dwSelectBrand(this)">${b}</button>`).join('')}
+      </div>
+    </div>
+    <div class="crow c1">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Daily Units Sold — <span id="dwBrandLabel">All Brands</span></div><canvas id="dwU"></canvas></div>
+    </div>
+    <div class="crow c1">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Daily Revenue — <span id="dwBrandLabelR">All Brands</span></div><canvas id="dwR"></canvas></div>
+    </div>
+    <div class="cc" style="margin-bottom:1rem;">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;"><span class="dot" style="background:var(--muted)"></span>Date-wise Summary Table — <span id="dwTableBrandLabel">All Brands</span></div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;" id="dwTableBrandPills">
+          ${['All Brands',...D.brands].map((b,i)=>`<button
+            style="padding:.3rem .75rem;border-radius:20px;font-size:.72rem;font-weight:600;cursor:pointer;border:1px solid ${i===0?'var(--accent)':'var(--border)'};background:${i===0?'rgba(255,107,53,.15)':'transparent'};color:${i===0?'var(--accent)':'var(--muted)'};font-family:'DM Sans',sans-serif;"
+            data-brand="${b}" onclick="dwSelectBrand(this)">${b}</button>`).join('')}
+        </div>
+      </div>
+      <div class="day-table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Units Sold</th><th>Revenue</th><th>Avg ASP</th></tr></thead>
+          <tbody id="dwTbody">${D.dates.map((date,i)=>`<tr>
+            <td><strong>${date}</strong></td>
+            <td><strong>${fN(D.date_units[i])}</strong></td>
+            <td>${fR(D.date_revenue[i])}</td>
+            <td>${D.date_asp[i]>0?fR(D.date_asp[i]):'—'}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </div>
+    </div>`;
+  dwRenderCharts('All Brands');
+}
+
+function dwSelectBrand(btn){
+  // Update all pill groups (top filter + table filter)
+  document.querySelectorAll('#dwBrandPills button, #dwTableBrandPills button').forEach(b=>{
+    b.style.background='transparent';
+    b.style.color='var(--muted)';
+    b.style.borderColor='var(--border)';
+  });
+  // Highlight clicked button and matching buttons in both groups
+  const brand = btn.dataset.brand;
+  document.querySelectorAll(`#dwBrandPills button[data-brand="${brand}"], #dwTableBrandPills button[data-brand="${brand}"]`).forEach(b=>{
+    b.style.background='rgba(255,107,53,.15)';
+    b.style.color='var(--accent)';
+    b.style.borderColor='var(--accent)';
+  });
+  dwRenderCharts(brand);
+}
+
+function dwRenderCharts(brand){
+  // Update labels
+  const lbl = brand==='All Brands'?'All Brands':brand;
+  const el1=document.getElementById('dwBrandLabel');
+  const el2=document.getElementById('dwBrandLabelR');
+  if(el1) el1.textContent=lbl;
+  if(el2) el2.textContent=lbl;
+  const el3=document.getElementById('dwTableBrandLabel');
+  if(el3) el3.textContent=lbl;
+
+  // Get data for selected brand
+  let units, revenue;
+  if(brand==='All Brands'){
+    units   = D.date_units;
+    revenue = D.date_revenue;
+  } else {
+    const bd = D.brand_date[brand];
+    units   = bd ? bd.sales   : D.dates.map(()=>0);
+    revenue = bd ? bd.revenue : D.dates.map(()=>0);
+  }
+
+  // Destroy existing charts
+  if(CH['dwU']){CH['dwU'].destroy();delete CH['dwU'];}
+  if(CH['dwR']){CH['dwR'].destroy();delete CH['dwR'];}
+
+  mkLine('dwU', D.dates, [{label:'Units', data:units, borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,.1)', fill:true, tension:.4, pointRadius:4, pointHoverRadius:7}]);
+  mkLine('dwR', D.dates, [{label:'Revenue', data:revenue, borderColor:'#00d4aa', backgroundColor:'rgba(0,212,170,.1)', fill:true, tension:.4, pointRadius:4, pointHoverRadius:7}]);
+
+  // Update date-wise summary table with brand-filtered data
+  const tbody = document.getElementById('dwTbody');
+  if(tbody){
+    tbody.innerHTML = D.dates.map((d,i)=>{
+      const u   = Math.round(units[i]||0);
+      const r   = Math.round(revenue[i]||0);
+      const asp = u>0?Math.round(r/u):0;
+      return `<tr>
+        <td><strong>${d}</strong></td>
+        <td><strong>${u.toLocaleString('en-IN')}</strong></td>
+        <td>${fR(r)}</td>
+        <td>${asp>0?'₹'+asp.toLocaleString('en-IN'):'—'}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+
+function buildDeadStock(){
+  const d=DEAD;
+  document.getElementById('deadstock').innerHTML=`
+    <div class="stats">
+      <div class="sc"><div class="sl">Dead SKUs</div><div class="sv" style="color:var(--a5)">${d.length.toLocaleString('en-IN')}</div><div class="ss">Zero sales in period</div></div>
+      <div class="sc"><div class="sl">Wasted Views</div><div class="sv" style="color:var(--a4)">${Math.round(d.reduce((s,r)=>s+r.total_views,0)).toLocaleString('en-IN')}</div><div class="ss">Views with no sales</div></div>
+      <div class="sc"><div class="sl">% of Total SKUs</div><div class="sv" style="color:var(--a5)">${((d.length/D.total_skus)*100).toFixed(1)}%</div><div class="ss">Needs attention</div></div>
+      <div class="sc"><div class="sl">Top Dead Brand</div><div class="sv" style="font-size:1rem;margin-top:.3rem;">${(()=>{const bc={};d.forEach(s=>bc[s.brand]=(bc[s.brand]||0)+1);return Object.entries(bc).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—';})()}</div><div class="ss">Most dead SKUs</div></div>
+    </div>
+    <div class="tcard">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">💀 Dead Stock — Sorted by Wasted Views</div>
+        <input class="srch" id="dsSrch" placeholder="🔍 Search..." oninput="renderDSTable(this.value)">
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.75rem;padding:.5rem .75rem;background:rgba(255,77,109,.06);border:1px solid rgba(255,77,109,.15);border-radius:8px;">
+        ⚠️ These SKUs got traffic but made <strong style="color:var(--a5)">zero sales</strong>. Consider: price drop, better images, ads boost, or delisting.
+      </div>
+      <div class="tw">
+        <table id="dsTable">
+          <thead><tr>
+            <th class="sth" data-key="rank">Rank</th>
+            <th class="sth" data-key="sku">SKU ID</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="category">Category</th>
+            <th class="sth" data-key="total_views">Total Views</th>
+            <th>Action</th>
+          </tr></thead>
+          <tbody id="dsTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  renderDSTable('');
+  setupTableSort('dsTable',(k,d)=>renderDSTable('',k,d));
+}
+let dsSortKey='total_views', dsSortDir=-1;
+function renderDSTable(q, sortKey, sortDir){
+  if(sortKey){dsSortKey=sortKey;dsSortDir=sortDir;}
+  q=(q||'').toLowerCase();
+  let rows=DEAD.filter(s=>!q||s.sku.toLowerCase().includes(q)||s.name.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[dsSortKey],bv=b[dsSortKey];
+    if(typeof av==='number') return (av-bv)*dsSortDir;
+    return String(av||'').localeCompare(String(bv||''))*dsSortDir;
+  });
+  document.getElementById('dsTbody').innerHTML=rows.slice(0,100).map((s,i)=>`<tr>
+    <td><strong style="color:var(--muted)">${i+1}</strong></td>
+    <td><span style="color:var(--a5);font-weight:600;font-size:.78rem">${s.sku}</span></td>
+    <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${s.name}">${s.name.slice(0,38)}${s.name.length>38?'...':''}</td>
+    <td>${s.brand}</td>
+    <td>${s.category}</td>
+    <td><strong>${s.total_views.toLocaleString('en-IN')}</strong></td>
+    <td>
+      <span style="font-size:.68rem;padding:2px 8px;border-radius:20px;background:rgba(255,77,109,.12);color:var(--a5);font-weight:600;">
+        ${s.total_views>1000?'🔴 Fix Urgently':s.total_views>100?'🟡 Review':'⚪ Low Traffic'}
+      </span>
+    </td>
+  </tr>`).join('');
+}
+
+// ── RPU ──
+function buildRPU(){
+  const skus=[...SKUS].filter(s=>s.total_units>0);
+  const topRPU=[...skus].sort((a,b)=>b.rpu-a.rpu).slice(0,15);
+  const botRPU=[...skus].sort((a,b)=>a.rpu-b.rpu).slice(0,15);
+  const avgRPU=Math.round(skus.reduce((s,r)=>s+r.rpu,0)/skus.length);
+  document.getElementById('rpu').innerHTML=`
+    <div class="stats">
+      <div class="sc"><div class="sl">Avg RPU</div><div class="sv">₹${avgRPU.toLocaleString('en-IN')}</div><div class="ss">Revenue per unit sold</div></div>
+      <div class="sc"><div class="sl">Highest RPU</div><div class="sv" style="color:var(--a2)">₹${Math.round(topRPU[0]?.rpu||0).toLocaleString('en-IN')}</div><div class="ss">${topRPU[0]?.sku||'—'}</div></div>
+      <div class="sc"><div class="sl">Lowest RPU</div><div class="sv" style="color:var(--a5)">₹${Math.round(botRPU[0]?.rpu||0).toLocaleString('en-IN')}</div><div class="ss">${botRPU[0]?.sku||'—'}</div></div>
+      <div class="sc"><div class="sl">SKUs Above Avg</div><div class="sv" style="color:var(--accent)">${skus.filter(s=>s.rpu>avgRPU).length.toLocaleString('en-IN')}</div><div class="ss">High value SKUs</div></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Top 15 SKUs — Highest RPU</div><canvas id="rpuTop"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a5)"></span>Bottom 15 SKUs — Lowest RPU</div><canvas id="rpuBot"></canvas></div>
+    </div>
+    <div class="tcard" style="margin-top:1rem;">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">💰 All SKUs — Revenue per Unit</div>
+        <input class="srch" id="rpuSrch" placeholder="🔍 Search..." oninput="renderRPUTable(this.value)">
+      </div>
+      <div class="tw">
+        <table id="rpuTable">
+          <thead><tr>
+            <th class="sth" data-key="rank">Rank</th>
+            <th class="sth" data-key="sku">SKU ID</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="total_units">Units</th>
+            <th class="sth" data-key="total_revenue">Revenue</th>
+            <th class="sth desc" data-key="rpu">RPU</th>
+            <th>vs Avg</th>
+          </tr></thead>
+          <tbody id="rpuTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  setTimeout(()=>{
+    mkHBar('rpuTop',topRPU.map(s=>s.sku),topRPU.map(s=>s.rpu),'#00d4aabb');
+    mkHBar('rpuBot',botRPU.map(s=>s.sku),botRPU.map(s=>s.rpu),'#ff4d6dbb');
+  },50);
+  renderRPUTable('');
+  setupTableSort('rpuTable',(k,d)=>renderRPUTable('',k,d));
+}
+function renderRPUTable(q){
+  q=(q||'').toLowerCase();
+  const avgRPU=SKUS.filter(s=>s.total_units>0).reduce((s,r)=>s+r.rpu,0)/SKUS.filter(s=>s.total_units>0).length;
+  let rows=[...SKUS].filter(s=>s.total_units>0&&(!q||s.sku.toLowerCase().includes(q)||s.name.toLowerCase().includes(q)))
+    .sort((a,b)=>b.rpu-a.rpu);
+  document.getElementById('rpuTbody').innerHTML=rows.slice(0,100).map((s,i)=>{
+    const diff=s.rpu-avgRPU;
+    const cls=diff>0?'color:var(--a2)':'color:var(--a5)';
+    return `<tr>
+      <td><strong style="color:var(--muted)">${i+1}</strong></td>
+      <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${s.sku}</span></td>
+      <td style="max-width:190px;overflow:hidden;text-overflow:ellipsis" title="${s.name}">${s.name.slice(0,35)}${s.name.length>35?'...':''}</td>
+      <td>${s.brand}</td>
+      <td>${s.total_units.toLocaleString('en-IN')}</td>
+      <td>₹${Math.round(s.total_revenue).toLocaleString('en-IN')}</td>
+      <td><strong>₹${Math.round(s.rpu).toLocaleString('en-IN')}</strong></td>
+      <td><span style="${cls};font-weight:600;font-size:.75rem">${diff>0?'▲':'▼'} ₹${Math.abs(Math.round(diff)).toLocaleString('en-IN')}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── BEST DAY ──
+function buildBestDay(){
+  const dates=D.dates;
+  const units=D.date_units;
+  const revenue=D.date_revenue;
+  const bestUnitIdx=units.indexOf(Math.max(...units));
+  const bestRevIdx=revenue.indexOf(Math.max(...revenue));
+  const worstUnitIdx=units.indexOf(Math.min(...units));
+  const avgUnits=Math.round(units.reduce((a,b)=>a+b,0)/units.length);
+  const avgRev=Math.round(revenue.reduce((a,b)=>a+b,0)/revenue.length);
+
+  // Day over day change
+  const dodUnits=units.map((v,i)=>i===0?0:v-units[i-1]);
+  const dodRev=revenue.map((v,i)=>i===0?0:v-revenue[i-1]);
+
+  const tableRows=dates.map((d,i)=>{
+    const uDiff=dodUnits[i],rDiff=dodRev[i];
+    const uCls=uDiff>0?'color:var(--a2)':uDiff<0?'color:var(--a5)':'color:var(--muted)';
+    const rCls=rDiff>0?'color:var(--a2)':rDiff<0?'color:var(--a5)':'color:var(--muted)';
+    const isBestU=i===bestUnitIdx,isBestR=i===bestRevIdx,isWorst=i===worstUnitIdx;
+    return `<tr style="${isBestU?'background:rgba(0,212,170,.04)':''}${isWorst?'background:rgba(255,77,109,.04)':''}">
+      <td><strong>${d}</strong>${isBestU?'  <span style="font-size:.68rem;padding:1px 6px;border-radius:20px;background:rgba(0,212,170,.12);color:var(--a2)">Best</span>':''}${isWorst?'  <span style="font-size:.68rem;padding:1px 6px;border-radius:20px;background:rgba(255,77,109,.12);color:var(--a5)">Worst</span>':''}</td>
+      <td><strong>${units[i].toLocaleString('en-IN')}</strong></td>
+      <td><span style="${uCls};font-weight:600">${i===0?'—':(uDiff>0?'▲ +':uDiff<0?'▼ ':'')+(uDiff===0?'—':Math.abs(uDiff).toLocaleString('en-IN'))}</span></td>
+      <td>₹${Math.round(revenue[i]).toLocaleString('en-IN')}</td>
+      <td><span style="${rCls};font-weight:600">${i===0?'—':(rDiff>0?'▲ +':rDiff<0?'▼ ':'')+'₹'+(rDiff===0?'—':Math.abs(Math.round(rDiff)).toLocaleString('en-IN'))}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('bestday').innerHTML=`
+    <div class="stats">
+      <div class="sc"><div class="sl">Best Day (Units)</div><div class="sv" style="color:var(--a2)">${dates[bestUnitIdx]}</div><div class="ss">${units[bestUnitIdx].toLocaleString('en-IN')} units sold</div></div>
+      <div class="sc"><div class="sl">Best Day (Revenue)</div><div class="sv" style="color:var(--a2)">${dates[bestRevIdx]}</div><div class="ss">₹${Math.round(revenue[bestRevIdx]).toLocaleString('en-IN')}</div></div>
+      <div class="sc"><div class="sl">Worst Day</div><div class="sv" style="color:var(--a5)">${dates[worstUnitIdx]}</div><div class="ss">${units[worstUnitIdx].toLocaleString('en-IN')} units sold</div></div>
+      <div class="sc"><div class="sl">Daily Avg Units</div><div class="sv" style="color:var(--accent)">${avgUnits.toLocaleString('en-IN')}</div><div class="ss">₹${avgRev.toLocaleString('en-IN')} avg revenue</div></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Units — Day over Day</div><canvas id="bdU"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Revenue — Day over Day</div><canvas id="bdR"></canvas></div>
+    </div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a3)"></span>Day over Day Change — Units</div><canvas id="bdDU"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a4)"></span>Day over Day Change — Revenue</div><canvas id="bdDR"></canvas></div>
+    </div>
+    <div class="cc" style="margin-bottom:1rem;">
+      <div class="ct"><span class="dot" style="background:var(--muted)"></span>Daily Performance Table</div>
+      <div class="day-table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Units Sold</th><th>Day Change</th><th>Revenue</th><th>Revenue Change</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  setTimeout(()=>{
+    mkLine('bdU',dates,[{label:'Units',data:units,borderColor:'#ff6b35',backgroundColor:'rgba(255,107,53,.1)',fill:true,tension:.4,pointRadius:5}]);
+    mkLine('bdR',dates,[{label:'Revenue',data:revenue,borderColor:'#00d4aa',backgroundColor:'rgba(0,212,170,.1)',fill:true,tension:.4,pointRadius:5}]);
+    // DoD change bar charts
+    const dodColors=dodUnits.map(v=>v>=0?'rgba(0,212,170,.7)':'rgba(255,77,109,.7)');
+    const dodRColors=dodRev.map(v=>v>=0?'rgba(0,212,170,.7)':'rgba(255,77,109,.7)');
+    const ctx1=document.getElementById('bdDU');
+    if(ctx1){if(CH['bdDU']){CH['bdDU'].destroy();}CH['bdDU']=new Chart(ctx1,{type:'bar',
+      data:{labels:dates,datasets:[{data:dodUnits,backgroundColor:dodColors,borderWidth:0,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{
+        x:{ticks:{color:TC,font:{size:10}},grid:{color:GC}},
+        y:{ticks:{color:TC,callback:v=>v.toLocaleString('en-IN')},grid:{color:GC}}}}});}
+    const ctx2=document.getElementById('bdDR');
+    if(ctx2){if(CH['bdDR']){CH['bdDR'].destroy();}CH['bdDR']=new Chart(ctx2,{type:'bar',
+      data:{labels:dates,datasets:[{data:dodRev,backgroundColor:dodRColors,borderWidth:0,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false}},scales:{
+        x:{ticks:{color:TC,font:{size:10}},grid:{color:GC}},
+        y:{ticks:{color:TC,callback:v=>'₹'+Math.round(v).toLocaleString('en-IN')},grid:{color:GC}}}}});}
+  },50);
+}
+
+// ── DISCOUNT ──
+let discDateMode='all';
+
+function buildDiscount(){
+  document.getElementById('discount').innerHTML=`
+    <div class="stats" id="discStats"></div>
+    <div class="crow c2">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a5)"></span>⚠️ Over-Discounted SKUs (≥ 40%)</div><canvas id="highDiscChart"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>💡 Under-Discounted SKUs (< 15%)</div><canvas id="lowDiscChart"></canvas></div>
+    </div>
+    <div class="tcard" style="margin-top:1rem;">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">🏷️ All SKUs — Discount % for Selected Period</div>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+          <select id="discDateDrop" onchange="discSelectDate(this.value)"
+            style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.38rem .85rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;min-width:140px;">
+            <option value="all">📅 All Days (Avg)</option>
+            ${D.dates.map(d=>`<option value="${d}">${d}</option>`).join('')}
+          </select>
+          <input class="srch" id="discSrch" placeholder="🔍 Search SKU..." oninput="renderDiscTable(this.value)">
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem;" id="discLabel"></div>
+      <div class="tw">
+        <table id="discTable">
+          <thead><tr>
+            <th class="sth" data-key="rank">Rank</th>
+            <th class="sth" data-key="sku">SKU ID</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="mrp">MRP</th>
+            <th class="sth" data-key="avg_asp">Avg ASP</th>
+            <th class="sth desc" data-key="disc">Discount %</th>
+            <th class="sth" data-key="total_units">Units</th>
+            <th class="sth" data-key="total_revenue">Revenue</th>
+          </tr></thead>
+          <tbody id="discTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+  updateDiscountTab();
+  setupTableSort('discTable',(k,d)=>renderDiscTable('',k,d));
+}
+
+function discSelectDate(val){
+  discDateMode=val;
+  updateDiscountTab();
+}
+
+function discQuickDate(btn){
+  discDateMode=btn.dataset.date;
+  document.querySelectorAll('#discDatePills button').forEach(b=>{
+    b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';
+  });
+  btn.style.background='rgba(255,107,53,.15)';btn.style.color='var(--accent)';btn.style.borderColor='var(--accent)';
+  updateDiscountTab();
+}
+function discApplyCustom(){
+  discDateMode='custom';
+  document.querySelectorAll('#discDatePills button').forEach(b=>{
+    b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';
+  });
+  updateDiscountTab();
+}
+
+function getDiscFilteredSKUs(){
+  const from=document.getElementById('discFrom')?.value;
+  const to=document.getElementById('discTo')?.value;
+  return SKUS.filter(s=>s.mrp>0).map(s=>{
+    let dateIdxs=[];
+    if(discDateMode==='all') dateIdxs=D.dates.map((_,i)=>i);
+    else if(discDateMode==='custom') dateIdxs=D.dates.map((d,i)=>d>=from&&d<=to?i:-1).filter(i=>i>=0);
+    else{ const idx=D.dates.indexOf(discDateMode); if(idx>=0) dateIdxs=[idx]; }
+
+    const aspVals=dateIdxs.map(i=>s.daily[i]?s.daily[i][2]||s.daily[i].asp||0:0).filter(v=>v>0);
+    const avgAsp=aspVals.length?Math.round(aspVals.reduce((a,b)=>a+b,0)/aspVals.length):0;
+    const disc=s.mrp>0&&avgAsp>0?Math.round(((s.mrp-avgAsp)/s.mrp)*100*10)/10:0;
+    const units=dateIdxs.reduce((sum,i)=>sum+(s.daily[i]?s.daily[i][0]||s.daily[i].units||0:0),0);
+    const revenue=dateIdxs.reduce((sum,i)=>sum+(s.daily[i]?s.daily[i][1]||s.daily[i].revenue||0:0),0);
+    return{...s, avg_asp:avgAsp, disc, total_units:units, total_revenue:revenue};
+  });
+}
+
+function updateDiscountTab(){
+  const skus=getDiscFilteredSKUs();
+  const avgDisc=skus.length?Math.round(skus.reduce((s,r)=>s+r.disc,0)/skus.length*10)/10:0;
+  const highDisc=skus.filter(s=>s.disc>=40).sort((a,b)=>b.disc-a.disc).slice(0,15);
+  const lowDisc=skus.filter(s=>s.disc>0&&s.disc<15).sort((a,b)=>a.disc-b.disc).slice(0,15);
+
+  const statsEl=document.getElementById('discStats');
+  if(statsEl) statsEl.innerHTML=`
+    <div class="sc"><div class="sl">Avg Discount</div><div class="sv" style="color:var(--accent)">${avgDisc}%</div><div class="ss">Selected period</div></div>
+    <div class="sc"><div class="sl">High Discount ≥40%</div><div class="sv" style="color:var(--a5)">${skus.filter(s=>s.disc>=40).length.toLocaleString('en-IN')}</div><div class="ss">Needs attention</div></div>
+    <div class="sc"><div class="sl">Low Discount <15%</div><div class="sv" style="color:var(--a2)">${skus.filter(s=>s.disc<15).length.toLocaleString('en-IN')}</div><div class="ss">Under discounted</div></div>
+    <div class="sc"><div class="sl">Total SKUs</div><div class="sv" style="color:var(--a4)">${skus.length.toLocaleString('en-IN')}</div><div class="ss">With MRP mapped</div></div>`;
+
+  const labelEl=document.getElementById('discLabel');
+  if(labelEl){
+    const from=document.getElementById('discFrom')?.value;
+    const to=document.getElementById('discTo')?.value;
+    const period=discDateMode==='all'?'All Days':discDateMode==='custom'?`${from} → ${to}`:discDateMode;
+    labelEl.textContent=`Period: ${period} · ${skus.length} SKUs`;
+  }
+
+  setTimeout(()=>{
+    mkHBar('highDiscChart', highDisc.map(s=>s.sku), highDisc.map(s=>s.disc), '#ff4d6dbb');
+    mkHBar('lowDiscChart',  lowDisc.map(s=>s.sku),  lowDisc.map(s=>s.disc),  '#00d4aabb');
+  },50);
+  renderDiscTable('');
+}
+
+let discSortKey='disc', discSortDir=-1;
+function renderDiscTable(q, sortKey, sortDir){
+  if(sortKey){discSortKey=sortKey;discSortDir=sortDir;}
+  q=(q||'').toLowerCase();
+  let rows=getDiscFilteredSKUs();
+  if(q) rows=rows.filter(s=>s.sku.toLowerCase().includes(q)||s.name.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[discSortKey],bv=b[discSortKey];
+    if(typeof av==='number') return (av-bv)*discSortDir;
+    return String(av||'').localeCompare(String(bv||''))*discSortDir;
+  });
+  const avgDisc=D.avg_discount||0;
+  document.getElementById('discTbody').innerHTML=rows.slice(0,100).map((s,i)=>{
+    const cls=s.disc>=40?'color:var(--a5);font-weight:700':s.disc<15?'color:var(--a2);font-weight:700':'color:var(--text)';
+    const badge=s.disc>=40?'background:rgba(255,77,109,.12);color:var(--a5)':s.disc<15?'background:rgba(0,212,170,.12);color:var(--a2)':'background:rgba(255,255,255,.06);color:var(--muted)';
+    return `<tr>
+      <td><strong style="color:var(--muted)">${i+1}</strong></td>
+      <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${s.sku}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis" title="${s.name}">${s.name.slice(0,32)}${s.name.length>32?'...':''}</td>
+      <td>${s.brand}</td>
+      <td>₹${Math.round(s.mrp).toLocaleString('en-IN')}</td>
+      <td>₹${Math.round(s.avg_asp||s.a).toLocaleString('en-IN')}</td>
+      <td><span style="padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:700;${badge}">${s.disc}%</span></td>
+      <td>${s.total_units.toLocaleString('en-IN')}</td>
+      <td>${fR(s.total_revenue)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── UNIVERSAL SORT UTILITY ──
+// Track sort state per table
+const TABLE_SORT = {};
+
+function setupTableSort(tableId, renderFn){
+  setTimeout(()=>{
+    const table = document.getElementById(tableId);
+    if(!table) return;
+    TABLE_SORT[tableId] = {key:'', dir:-1};
+    table.querySelectorAll('th.sth').forEach(th=>{
+      th.style.cursor='pointer';
+      th.addEventListener('click',()=>{
+        const key = th.dataset.key;
+        if(!key) return;
+        const ts = TABLE_SORT[tableId];
+        if(ts.key===key) ts.dir*=-1; else{ts.key=key;ts.dir=-1;}
+        table.querySelectorAll('th.sth').forEach(t=>t.classList.remove('asc','desc'));
+        th.classList.add(ts.dir===1?'asc':'desc');
+        renderFn(key, ts.dir);
+      });
+    });
+  }, 100);
+}
+function makeSortable(tbodyId, data, renderer, defaultKey='', defaultDir=-1){
+  let sKey=defaultKey, sDir=defaultDir;
+  return {
+    sort(key){
+      if(sKey===key) sDir*=-1; else{sKey=key;sDir=-1;}
+      // Update header classes
+      const table=document.getElementById(tbodyId)?.closest('table');
+      if(table){
+        table.querySelectorAll('th').forEach(th=>{
+          th.classList.remove('asc','desc');
+          if(th.dataset.key===key) th.classList.add(sDir===1?'asc':'desc');
+        });
+      }
+      const sorted=[...data].sort((a,b)=>{
+        const av=a[key], bv=b[key];
+        if(typeof av==='number') return (av-bv)*sDir;
+        return String(av||'').localeCompare(String(bv||''))*sDir;
+      });
+      renderer(sorted);
+    },
+    get key(){return sKey;},
+    get dir(){return sDir;}
+  };
+}
+
+function thSort(key, label, currentKey, currentDir){
+  const cls=currentKey===key?(currentDir===1?' asc':' desc'):'';
+  return `<th class="sth${cls}" data-key="${key}" onclick="this.closest('table').dispatchEvent(new CustomEvent('sort',{detail:'${key}'}))">${label}</th>`;
+}
+
+// ── TARGET VS ACTUAL ──
+function buildTargetVsActual(){
+  const SKU_TV = D.sku_tv_summary || [];
+
+  // Rebuild flat TVA from sku_tv_summary daily arrays
+  const TVA = [];
+  window.TVA_FLAT = TVA;
+  SKU_TV.forEach(s=>{
+    (s.daily||[]).forEach(d=>{
+      TVA.push({sku:s.sku||'', name:s.name||'', brand:s.brand||'',
+        date:d.date, planned:d.planned, actual:d.actual, diff:d.diff, status:d.status});
+    });
+  });
+
+  const overCount  = TVA.filter(r=>r.status==='over').length;
+  const underCount = TVA.filter(r=>r.status==='under').length;
+  const onCount    = TVA.filter(r=>r.status==='on').length;
+  const total      = TVA.length;
+  const avgDiff    = total ? (TVA.reduce((s,r)=>s+r.diff,0)/total).toFixed(1) : 0;
+
+  // Date wise summary
+  const byDate = {};
+  TVA.forEach(r=>{
+    if(!byDate[r.date]) byDate[r.date]={over:0,under:0,on:0,diffs:[]};
+    byDate[r.date][r.status]++;
+    byDate[r.date].diffs.push(r.diff);
+  });
+  const dates = Object.keys(byDate).sort();
+  const dateOver  = dates.map(d=>byDate[d].over);
+  const dateUnder = dates.map(d=>byDate[d].under);
+  const dateOn    = dates.map(d=>byDate[d].on);
+  const dateAvgDiff = dates.map(d=>+(byDate[d].diffs.reduce((s,v)=>s+v,0)/byDate[d].diffs.length).toFixed(1));
+
+  document.getElementById('targetvs').innerHTML=`
+    <div class="sh">
+      <h2>🎯 Target vs Actual Discount</h2>
+      <p>How close was your actual discount to the planned schedule each day?</p>
+    </div>
+
+    <!-- Simple explanation cards -->
+    <div class="tva-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:.85rem;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;border-top:3px solid var(--a2);min-width:0;overflow:hidden;">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">✅ On Target</div>
+        <div id="tvaCardOn">
+          <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--a2);word-break:break-word;">${onCount.toLocaleString('en-IN')}</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem;">SKU-days within ±1% of plan</div>
+          <div style="font-size:.72rem;color:var(--a2);margin-top:.4rem;font-weight:600;">${total>0?Math.round(onCount/total*100):0}% of total</div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;border-top:3px solid var(--a5);">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">🔴 Running Higher Than Plan</div>
+        <div id="tvaCardOver">
+          <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--a5);">${overCount.toLocaleString('en-IN')}</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem;">SKU-days with actual > planned</div>
+          <div style="font-size:.72rem;color:var(--a5);margin-top:.4rem;font-weight:600;">${total>0?Math.round(overCount/total*100):0}% of total</div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;border-top:3px solid var(--a4);">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">🟡 Running Lower Than Plan</div>
+        <div id="tvaCardUnder">
+          <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--a4);">${underCount.toLocaleString('en-IN')}</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem;">SKU-days with actual < planned</div>
+          <div style="font-size:.72rem;color:var(--a4);margin-top:.4rem;font-weight:600;">${total>0?Math.round(underCount/total*100):0}% of total</div>
+        </div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1.15rem;border-top:3px solid var(--accent);">
+        <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.35rem;">📊 Avg Difference</div>
+        <div id="tvaCardAvg">
+          <div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:var(--accent);">${avgDiff>0?'+':''}${avgDiff}%</div>
+          <div style="font-size:.75rem;color:var(--muted);margin-top:.25rem;">Actual minus Planned</div>
+          <div style="font-size:.72rem;color:var(--accent);margin-top:.4rem;font-weight:600;">${total.toLocaleString('en-IN')} total points</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Detail Table FIRST -->
+    <div class="tcard" style="margin-bottom:1rem;">
+      <div class="tt" style="flex-direction:column;align-items:flex-start;gap:.5rem;">
+        <div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">📅 Daily Detail</div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;width:100%;">
+          <select id="tvaDateFilter" onchange="renderTVADailyTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.35rem .6rem;color:var(--text);font-size:.75rem;font-family:'DM Sans',sans-serif;outline:none;flex:1;min-width:100px;">
+            <option value="all">All Dates</option>
+            ${D.dates?.map(d=>`<option value="${d}">${d}</option>`).join('')||''}
+          </select>
+          <select id="tvaStatusFilter" onchange="renderTVADailyTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.35rem .6rem;color:var(--text);font-size:.75rem;font-family:'DM Sans',sans-serif;outline:none;flex:1;min-width:100px;">
+            <option value="all">All Status</option>
+            <option value="over">🔴 Over</option>
+            <option value="under">🟡 Under</option>
+            <option value="on">✅ On Target</option>
+          </select>
+          <input class="srch" id="tvaDetailSrch" placeholder="🔍 Search SKU..." oninput="renderTVADailyTable()" style="flex:1;min-width:120px;width:100%;box-sizing:border-box;">
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.65rem;" id="tvaDetailCount"></div>
+      <div class="tw">
+        <table id="tvaDailyTable">
+          <thead><tr>
+            <th class="sth" data-key="sku">SKU</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="date">Date</th>
+            <th class="sth" data-key="planned">📋 Planned %</th>
+            <th class="sth" data-key="actual">📊 Actual %</th>
+            <th class="sth" data-key="diff">↕ Difference</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="tvaDailyTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="crow c2" style="margin-bottom:1rem;">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Daily — On Target vs Over vs Under</div><canvas id="tvaStatusChart"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a3)"></span>Daily Avg Difference (Actual − Planned %)</div><canvas id="tvaDiffChart"></canvas></div>
+    </div>
+
+    <!-- SKU Summary Table -->
+    <div class="tcard">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">📦 SKU Summary — Planned vs Actual Average</div>
+        <div style="display:flex;gap:.5rem;align-items:center;">
+          <select id="tvaFilter" onchange="renderTVASKUTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.35rem .75rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;">
+            <option value="all">All SKUs</option>
+            <option value="over">🔴 Mostly Over</option>
+            <option value="under">🟡 Mostly Under</option>
+            <option value="on">✅ Mostly On Target</option>
+          </select>
+          <input class="srch" id="tvaSrch" placeholder="🔍 Search SKU..." oninput="renderTVASKUTable()">
+        </div>
+      </div>
+      <div class="tw">
+        <table id="tvaSKUTable">
+          <thead><tr>
+            <th class="sth" data-key="rank">#</th>
+            <th class="sth" data-key="sku">SKU</th>
+            <th class="sth" data-key="name">Product</th>
+            <th class="sth" data-key="brand">Brand</th>
+            <th class="sth" data-key="avg_planned">📋 Avg Planned</th>
+            <th class="sth" data-key="avg_actual">📊 Avg Actual</th>
+            <th class="sth" data-key="avg_diff">↕ Avg Diff</th>
+            <th class="sth" data-key="over_days">🔴 Over Days</th>
+            <th class="sth" data-key="under_days">🟡 Under Days</th>
+            <th class="sth" data-key="on_target">✅ On Target</th>
+          </tr></thead>
+          <tbody id="tvaSKUTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  setTimeout(()=>{
+    // Status stacked bar chart
+    const ctx1 = document.getElementById('tvaStatusChart');
+    if(ctx1){
+      if(CH['tvaStatusChart']){CH['tvaStatusChart'].destroy();}
+      CH['tvaStatusChart'] = new Chart(ctx1,{type:'bar',
+        data:{labels:dates,datasets:[
+          {label:'On Target ✅',data:dateOn,  backgroundColor:'rgba(0,212,170,.7)',borderRadius:3},
+          {label:'Over 🔴',     data:dateOver, backgroundColor:'rgba(255,77,109,.7)',borderRadius:3},
+          {label:'Under 🟡',    data:dateUnder,backgroundColor:'rgba(255,214,10,.7)',borderRadius:3},
+        ]},
+        options:{responsive:true,maintainAspectRatio:true,
+          plugins:{legend:{display:true,labels:{color:TC,font:{size:9},boxWidth:10}}},
+          scales:{x:{stacked:true,ticks:{color:TC,font:{size:10}},grid:{color:GC}},
+                  y:{stacked:true,ticks:{color:TC},grid:{color:GC}}}}
+      });
+    }
+    // Avg diff line chart
+    mkLine('tvaDiffChart', dates, [{
+      label:'Avg Diff %', data:dateAvgDiff,
+      borderColor:'#7b61ff', backgroundColor:'rgba(123,97,255,.1)',
+      fill:true, tension:.4, pointRadius:5,
+      pointBackgroundColor: dateAvgDiff.map(v=>v>1?'#ff4d6d':v<-1?'#ffd60a':'#00d4aa')
+    }]);
+    setupTableSort('tvaSKUTable',(k,d)=>renderTVASKUTable(k,d));
+    setupTableSort('tvaDailyTable',(k,d)=>renderTVADailyTable(k,d));
+  },50);
+
+  renderTVASKUTable();
+  renderTVADailyTable();
+}
+
+let tvaSKUSortKey='avg_diff', tvaSKUSortDir=-1;
+function renderTVASKUTable(sortKey, sortDir){
+  if(sortKey){tvaSKUSortKey=sortKey; tvaSKUSortDir=sortDir;}
+  const filter = document.getElementById('tvaFilter')?.value||'all';
+  const q = (document.getElementById('tvaSrch')?.value||'').toLowerCase();
+  let rows = [...(D.sku_tv_summary||[])];
+  if(filter==='over')   rows=rows.filter(s=>s.over_days>0);
+  if(filter==='under')  rows=rows.filter(s=>s.under_days>0);
+  if(filter==='on')     rows=rows.filter(s=>s.on_target===s.total_days);
+  if(q) rows=rows.filter(s=>s.name?.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[tvaSKUSortKey],bv=b[tvaSKUSortKey];
+    if(typeof av==='number') return (av-bv)*tvaSKUSortDir;
+    return String(av||'').localeCompare(String(bv||''))*tvaSKUSortDir;
+  });
+  const el=document.getElementById('tvaSKUTbody');
+  if(!el) return;
+  el.innerHTML=rows.slice(0,100).map((s,i)=>{
+    const dCls=s.avg_diff>1?'color:var(--a5)':s.avg_diff<-1?'color:var(--a4)':'color:var(--a2)';
+    const dSign=s.avg_diff>0?'+':'';
+    return `<tr>
+      <td>${i+1}</td>
+      <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${s.sku||''}</span></td>
+      <td title="${s.name||''}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${(s.name||'').slice(0,35)}</td>
+      <td>${s.brand||''}</td>
+      <td>${s.avg_planned}%</td>
+      <td>${s.avg_actual}%</td>
+      <td><strong style="${dCls}">${dSign}${s.avg_diff}%</strong></td>
+      <td><span style="color:var(--a5)">${s.over_days}</span></td>
+      <td><span style="color:var(--a4)">${s.under_days}</span></td>
+      <td><span style="color:var(--a2)">${s.on_target}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+let tvaDailySortKey='diff', tvaDailySortDir=-1;
+function renderTVADailyTable(sortKey, sortDir){
+  if(sortKey){tvaDailySortKey=sortKey; tvaDailySortDir=sortDir;}
+  const dateF = document.getElementById('tvaDateFilter')?.value||'all';
+  const statF = document.getElementById('tvaStatusFilter')?.value||'all';
+  const q     = (document.getElementById('tvaDetailSrch')?.value||'').toLowerCase();
+  const all   = window.TVA_FLAT||TVA_FLAT||[];
+
+  // ── Update top 4 cards based on selected date ──
+  const df  = dateF==='all'?all:all.filter(r=>r.date===dateF);
+  const wd  = df.filter(r=>r.diff!=null);
+  const _on = wd.filter(r=>r.status==='on').length;
+  const _ov = wd.filter(r=>r.status==='over').length;
+  const _un = wd.filter(r=>r.status==='under').length;
+  const _tt = wd.length;
+  const _av = _tt?(wd.reduce((s,r)=>s+r.diff,0)/_tt).toFixed(1):0;
+  const _sg = _av>0?'+':'';
+  const upd = (id,val,sub,pct,col)=>{
+    const el=document.getElementById(id);
+    if(el) el.innerHTML=`<div style="font-family:'Syne',sans-serif;font-size:1.6rem;font-weight:800;color:${col}">${val}</div><div style="font-size:.75rem;color:var(--muted);margin-top:.2rem">${sub}</div><div style="font-size:.72rem;color:${col};margin-top:.35rem;font-weight:600">${pct}</div>`;
+  };
+  upd('tvaCardOn',  _on.toLocaleString('en-IN'),  'SKU-days within ±1% of plan',       _tt>0?Math.round(_on/_tt*100)+'% of total':'—','var(--a2)');
+  upd('tvaCardOver',_ov.toLocaleString('en-IN'),  'SKU-days with actual > planned',     _tt>0?Math.round(_ov/_tt*100)+'% of total':'—','var(--a5)');
+  upd('tvaCardUnder',_un.toLocaleString('en-IN'), 'SKU-days with actual < planned',     _tt>0?Math.round(_un/_tt*100)+'% of total':'—','var(--a4)');
+  upd('tvaCardAvg', _sg+_av+'%',                  'Actual minus Planned',               _tt.toLocaleString('en-IN')+' total points','var(--accent)');
+
+  let rows = [...all];
+  if(dateF!=='all') rows=rows.filter(r=>r.date===dateF);
+  if(statF!=='all') rows=rows.filter(r=>r.status===statF);
+  if(q) rows=rows.filter(r=>r.sku?.toLowerCase().includes(q)||r.name?.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[tvaDailySortKey],bv=b[tvaDailySortKey];
+    if(typeof av==='number') return (av-bv)*tvaDailySortDir;
+    return String(av||'').localeCompare(String(bv||''))*tvaDailySortDir;
+  });
+  const el=document.getElementById('tvaDailyTbody');
+  if(!el) return;
+  const countEl=document.getElementById('tvaDetailCount');
+  if(countEl) countEl.textContent=`Showing ${Math.min(200,rows.length)} of ${rows.length} records`;
+  el.innerHTML=rows.slice(0,1000).map(r=>{
+    const dSign=r.diff>0?'+':'';
+    const dCls=r.diff>1?'color:var(--a5)':r.diff<-1?'color:var(--a4)':'color:var(--a2)';
+    const badge=r.status==='over'
+      ?'background:rgba(255,77,109,.15);color:var(--a5)'
+      :r.status==='under'
+      ?'background:rgba(255,214,10,.15);color:var(--a4)'
+      :r.status==='on'
+      ?'background:rgba(0,212,170,.15);color:var(--a2)'
+      :'background:rgba(255,255,255,.06);color:var(--muted)';
+    const label=r.status==='over'?'🔴 Over':r.status==='under'?'🟡 Under':r.status==='on'?'✅ On Target':'⚪ No Data';
+    const actualDisp=r.actual!=null?r.actual+'%':'—';
+    const diffDisp=r.diff!=null?`<strong style="${dCls}">${dSign}${r.diff}%</strong>`:'—';
+    return `<tr>
+      <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${r.sku}</span></td>
+      <td title="${r.name||''}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${(r.name||'').slice(0,30)}${(r.name||'').length>30?'...':''}</td>
+      <td>${r.brand||''}</td>
+      <td>${r.date}</td>
+      <td>${r.planned}%</td>
+      <td>${actualDisp}</td>
+      <td>${diffDisp}</td>
+      <td><span style="padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;${badge}">${label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── INVENTORY ──
+function buildInventory(){
+  if(!INV||!INV.skus){
+    document.getElementById('inventory').innerHTML='<div class="loading" style="color:var(--a5)">❌ inventory_data.json not found. Make sure inventory.csv is in your folder and run generate_dashboard.py again.</div>';
+    return;
+  }
+  const S=INV.summary, skus=INV.skus;
+  const whs=INV.warehouses||[];
+  const brands=INV.brands||[];
+
+  document.getElementById('inventory').innerHTML=`
+    <div class="sh"><h2>📦 Inventory Dashboard</h2><p>Current stock levels, alerts & sales velocity across all warehouses</p></div>
+
+    <!-- Summary Stats -->
+    <div class="inv-stats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:.85rem;margin-bottom:.85rem;">
+      <div class="sc"><div class="sl">Total Live Stock</div><div class="sv" style="color:var(--accent)">${INV.total_live.toLocaleString('en-IN')}</div><div class="ss">Units on website</div></div>
+      <div class="sc"><div class="sl">Total SKUs</div><div class="sv" style="color:var(--a2)">${INV.total_skus.toLocaleString('en-IN')}</div><div class="ss">Unique products</div></div>
+      <div class="sc"><div class="sl">🔴 Out of Stock</div><div class="sv" style="color:var(--a5)">${S.oos.toLocaleString('en-IN')}</div><div class="ss">0 units live</div></div>
+      <div class="sc"><div class="sl">⚠️ Critical (<7 days)</div><div class="sv" style="color:#ff9500">${S.critical.toLocaleString('en-IN')}</div><div class="ss">Will stockout in 7 days</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.85rem;margin-bottom:1.25rem;">
+      <div class="sc"><div class="sl">🟡 Low Stock (<14d)</div><div class="sv" style="color:var(--a4)">${S.low.toLocaleString('en-IN')}</div><div class="ss">Reorder soon</div></div>
+      <div class="sc"><div class="sl">🟠 Medium (14-30d)</div><div class="sv" style="color:orange">${S.medium.toLocaleString('en-IN')}</div><div class="ss">Monitor closely</div></div>
+      <div class="sc"><div class="sl">💀 Dead Inventory</div><div class="sv" style="color:var(--muted)">${S.dead.toLocaleString('en-IN')}</div><div class="ss">Stock but 0 sales</div></div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="crow c2" style="margin-bottom:1rem;">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Stock Status Distribution</div><canvas id="invStatusChart"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Top 10 Warehouses by Stock</div><canvas id="invWhChart"></canvas></div>
+    </div>
+    <div class="crow c2" style="margin-bottom:1rem;">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a3)"></span>Sales Velocity — 7D vs 30D vs 90D (Top 10 SKUs)</div><canvas id="invVelChart"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a5)"></span>⚡ Pilgrim — Fast Movers vs Slow Movers (DRR Distribution)</div><canvas id="invUrgencyChart"></canvas></div>
+    </div>
+
+    <!-- Inventory Table -->
+    <div class="tcard">
+      <div class="tt">
+        <div style="font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">📋 All SKUs — Inventory Detail</div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+          <select id="invStatusFilter" onchange="renderInvTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.38rem .75rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;">
+            <option value="all">All Status</option>
+            <option value="oos">🔴 Out of Stock</option>
+            <option value="critical">⚠️ Critical</option>
+            <option value="low">🟡 Low Stock</option>
+            <option value="medium">🟠 Medium</option>
+            <option value="dead">💀 Dead Inventory</option>
+            <option value="healthy">✅ Healthy</option>
+          </select>
+          <select id="invBrandFilter" onchange="renderInvTable()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.38rem .75rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;">
+            <option value="all">All Brands</option>
+            ${[...new Set(skus.map(s=>s.brand))].map(b=>`<option value="${b}">${b}</option>`).join('')}
+          </select>
+          <input class="srch" id="invSrch" placeholder="🔍 Search SKU..." oninput="renderInvTable()">
+        </div>
+      </div>
+      <div style="font-size:.75rem;color:var(--muted);margin-bottom:.6rem;" id="invCount"></div>
+      <div class="tw">
+        <table id="invTable">
+          <thead><tr>
+            <th class="sth" onclick="invSort('sku')">SKU</th>
+            <th class="sth" onclick="invSort('title')">Product</th>
+            <th class="sth" onclick="invSort('brand')">Brand</th>
+            <th class="sth" onclick="invSort('live')">📦 Live Stock</th>
+            <th class="sth" onclick="invSort('daily_7d')">DRR (Daily Rate)</th>
+            <th class="sth" onclick="invSort('s7')">Sales 7D</th>
+            <th class="sth" onclick="invSort('s30')">Sales 30D</th>
+            <th class="sth" onclick="invSort('s90')">Sales 90D</th>
+            <th class="sth" onclick="invSort('doi_7d')">Days Left</th>
+            <th>Status</th>
+          </tr></thead>
+          <tbody id="invTbody"></tbody>
+        </table>
+      </div>
+    </div>`;
+
+  setTimeout(()=>{
+    // Status donut
+    const statusData = [S.healthy, S.medium, S.low, S.critical, S.oos, S.dead];
+    const statusLabels = ['✅ Healthy','🟠 Medium','🟡 Low','⚠️ Critical','🔴 OOS','💀 Dead'];
+    const statusColors = ['#00d4aa','#ff9500','#ffd60a','#ff6b35','#ff4d6d','#55556e'];
+    const ctx1=document.getElementById('invStatusChart');
+    if(ctx1){if(CH['invStatusChart'])CH['invStatusChart'].destroy();
+      CH['invStatusChart']=new Chart(ctx1,{type:'doughnut',
+        data:{labels:statusLabels,datasets:[{data:statusData,backgroundColor:statusColors,borderWidth:0,hoverOffset:6}]},
+        options:{responsive:true,maintainAspectRatio:true,cutout:'60%',
+          plugins:{legend:{display:true,position:'right',labels:{color:TC,font:{size:9},boxWidth:10}}}}});}
+
+    // Warehouse bar
+    const top10wh=whs.slice(0,10);
+    mkHBar('invWhChart',top10wh.map(w=>w.wh.replace(/_/g,' ').slice(0,20)),top10wh.map(w=>w.live));
+
+    // Sales velocity - top 10 by 7d sales
+    const top10=skus.filter(s=>s.s7>0).sort((a,b)=>b.s7-a.s7).slice(0,10);
+    const ctx3=document.getElementById('invVelChart');
+    if(ctx3){if(CH['invVelChart'])CH['invVelChart'].destroy();
+      CH['invVelChart']=new Chart(ctx3,{type:'bar',
+        data:{labels:top10.map(s=>s.sku),datasets:[
+          {label:'7D',data:top10.map(s=>s.s7),backgroundColor:'rgba(255,107,53,.8)',borderRadius:3},
+          {label:'30D',data:top10.map(s=>Math.round(s.s30/30*7)),backgroundColor:'rgba(0,212,170,.8)',borderRadius:3},
+          {label:'90D',data:top10.map(s=>Math.round(s.s90/90*7)),backgroundColor:'rgba(123,97,255,.8)',borderRadius:3},
+        ]},
+        options:{responsive:true,maintainAspectRatio:true,
+          plugins:{legend:{display:true,labels:{color:TC,font:{size:9},boxWidth:10}}},
+          scales:{x:{ticks:{color:TC,font:{size:9},maxRotation:35},grid:{color:GC}},
+                  y:{ticks:{color:TC,callback:v=>v.toLocaleString('en-IN')},grid:{color:GC}}}}});}
+
+    // Brand Sales Velocity chart
+    const ctx4=document.getElementById('invBrandChart');
+    if(ctx4){if(CH['invBrandChart'])CH['invBrandChart'].destroy();
+      const brandSkus=brands.map(b=>({
+        brand:b.brand,
+        s7: INV.skus.filter(s=>s.brand===b.brand).reduce((sum,s)=>sum+s.s7,0),
+        s30: INV.skus.filter(s=>s.brand===b.brand).reduce((sum,s)=>sum+s.s30,0),
+        s90: INV.skus.filter(s=>s.brand===b.brand).reduce((sum,s)=>sum+s.s90,0),
+        drr: INV.skus.filter(s=>s.brand===b.brand).reduce((sum,s)=>sum+s.daily_7d,0),
+        critical: INV.skus.filter(s=>s.brand===b.brand&&(s.status==='critical'||s.status==='oos')).length,
+      }));
+      CH['invBrandChart']=new Chart(ctx4,{type:'bar',
+        data:{labels:brandSkus.map(b=>b.brand),datasets:[
+          {label:'Sales 7D',data:brandSkus.map(b=>b.s7),backgroundColor:'rgba(255,107,53,.8)',borderRadius:4},
+          {label:'Sales 30D (÷4)',data:brandSkus.map(b=>Math.round(b.s30/4)),backgroundColor:'rgba(0,212,170,.8)',borderRadius:4},
+          {label:'Sales 90D (÷12)',data:brandSkus.map(b=>Math.round(b.s90/12)),backgroundColor:'rgba(123,97,255,.8)',borderRadius:4},
+        ]},
+        options:{responsive:true,maintainAspectRatio:true,
+          plugins:{legend:{display:true,labels:{color:TC,font:{size:9},boxWidth:10}}},
+          scales:{x:{ticks:{color:TC},grid:{color:GC}},
+                  y:{ticks:{color:TC,callback:v=>v.toLocaleString('en-IN')},grid:{color:GC}}}}});}
+
+    // ── Pilgrim Fast vs Slow Movers DRR Distribution ──
+    const ctx5 = document.getElementById('invUrgencyChart');
+    if(ctx5 && INV && INV.skus){
+      if(CH['invUrgencyChart']) CH['invUrgencyChart'].destroy();
+
+      const pSkus = INV.skus.filter(s=>s.brand==='Pilgrim');
+      const buckets = [
+        {label:'🚫 No Sales',  min:0,   max:0,    color:'rgba(85,85,110,.85)'},
+        {label:'🐢 1-10/day',  min:1,   max:10,   color:'rgba(255,214,10,.85)'},
+        {label:'🚶 11-50/day', min:11,  max:50,   color:'rgba(0,212,170,.85)'},
+        {label:'🏃 51-100/day',min:51,  max:100,  color:'rgba(123,97,255,.85)'},
+        {label:'⚡ 101-200/day',min:101,max:200,  color:'rgba(255,107,53,.85)'},
+        {label:'🚀 201-500/day',min:201,max:500,  color:'rgba(255,77,109,.85)'},
+        {label:'🔥 500+/day',  min:501, max:99999,color:'rgba(255,0,80,.95)'},
+      ];
+      const counts = buckets.map(b=>pSkus.filter(s=>s.daily_7d>=b.min&&s.daily_7d<=b.max).length);
+      const skuLists = buckets.map(b=>pSkus.filter(s=>s.daily_7d>=b.min&&s.daily_7d<=b.max).map(s=>({sku:s.sku,drr:s.daily_7d.toFixed(1)})));
+
+      CH['invUrgencyChart'] = new Chart(ctx5,{
+        type:'bar',
+        data:{
+          labels: buckets.map(b=>b.label),
+          datasets:[{
+            label:'SKU Count',
+            data: counts,
+            backgroundColor: buckets.map(b=>b.color),
+            borderRadius: 6,
+            borderWidth: 0,
+          }]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:true,
+          plugins:{
+            legend:{display:false},
+            tooltip:{
+              callbacks:{
+                title:ctx=>`${ctx[0].label} — ${counts[ctx[0].dataIndex]} SKUs`,
+                label:ctx=>'Click bar to see all SKUs',
+              },
+              bodyFont:{size:10}, padding:10,
+            }
+          },
+          onClick:(evt,els)=>{
+            if(!els.length) return;
+            const idx=els[0].index;
+            const list=skuLists[idx];
+            const bucket=buckets[idx];
+            // Show popup
+            let popup=document.getElementById('drrPopup');
+            if(!popup){
+              popup=document.createElement('div');
+              popup.id='drrPopup';
+              popup.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a2e;border:1px solid var(--accent);border-radius:12px;padding:1.2rem;z-index:9999;max-width:520px;width:90%;max-height:70vh;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.7);';
+              document.body.appendChild(popup);
+            }
+            const cols = [list.slice(0,Math.ceil(list.length/2)), list.slice(Math.ceil(list.length/2))];
+            popup.innerHTML=`
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.85rem;">
+                <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:.95rem;color:var(--text)">${bucket.label} — <span style="color:var(--accent)">${list.length} SKUs</span></div>
+                <button onclick="document.getElementById('drrPopup').remove()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;padding:0 .25rem;">✕</button>
+              </div>
+              <div style="overflow-y:auto;max-height:55vh;">
+                <table style="width:100%;border-collapse:collapse;font-size:.78rem;">
+                  <thead><tr>
+                    <th style="text-align:left;color:var(--muted);padding:.3rem .5rem;border-bottom:1px solid var(--border);">SKU</th>
+                    <th style="text-align:right;color:var(--muted);padding:.3rem .5rem;border-bottom:1px solid var(--border);">DRR (units/day)</th>
+                  </tr></thead>
+                  <tbody>
+                    ${list.map((s,i)=>`<tr style="background:${i%2===0?'transparent':'rgba(255,255,255,.03)'}">
+                      <td style="padding:.3rem .5rem;color:var(--accent);font-weight:600;">${s.sku}</td>
+                      <td style="padding:.3rem .5rem;text-align:right;color:var(--text);">${s.drr}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
+              </div>`;
+            popup.style.display='block';
+          },
+          scales:{
+            x:{ticks:{color:TC, font:{size:9}}, grid:{color:GC}},
+            y:{ticks:{color:TC, stepSize:10}, grid:{color:GC},
+              title:{display:true, text:'Number of SKUs', color:TC, font:{size:10}}}
+          }
+        }
+      });
+      // Close popup on outside click
+      document.addEventListener('click', e=>{
+        const p=document.getElementById('drrPopup');
+        if(p && !p.contains(e.target) && !ctx5.contains(e.target)) p.remove();
+      });
+    }
+
+  },50);
+  renderInvTable();
+  // Setup sort after table is rendered
+  setTimeout(()=>setupTableSort('invTable',(k,d)=>renderInvTable(k,d)),200);
+}
+
+let invSortKey='live', invSortDir=-1;
+function invSort(key){
+  if(invSortKey===key) invSortDir*=-1; else{invSortKey=key;invSortDir=-1;}
+  // Update header indicators
+  document.querySelectorAll('#invTable th.sth').forEach(th=>{
+    th.classList.remove('asc','desc');
+    if(th.getAttribute('onclick')===`invSort('${key}')`) th.classList.add(invSortDir===1?'asc':'desc');
+  });
+  renderInvTable();
+}
+function renderInvTable(sortKey, sortDir){
+  if(sortKey!==undefined){invSortKey=sortKey;invSortDir=sortDir;}
+  const statusF = document.getElementById('invStatusFilter')?.value||'all';
+  const brandF  = document.getElementById('invBrandFilter')?.value||'all';
+  const q       = (document.getElementById('invSrch')?.value||'').toLowerCase();
+  let rows = [...(INV.skus||[])];
+  if(statusF!=='all') rows=rows.filter(s=>s.status===statusF);
+  if(brandF!=='all')  rows=rows.filter(s=>s.brand===brandF);
+  if(q) rows=rows.filter(s=>s.sku.toLowerCase().includes(q)||s.title.toLowerCase().includes(q));
+  rows.sort((a,b)=>{
+    const av=a[invSortKey],bv=b[invSortKey];
+    if(typeof av==='number') return (av-bv)*invSortDir;
+    return String(av||'').localeCompare(String(bv||''))*invSortDir;
+  });
+  const el=document.getElementById('invTbody');if(!el)return;
+  const countEl=document.getElementById('invCount');
+  if(countEl) countEl.textContent=`Showing ${Math.min(rows.length,200)} of ${rows.length} SKUs`;
+
+  const statusStyle={
+    'oos':    'background:rgba(255,77,109,.15);color:var(--a5)',
+    'critical':'background:rgba(255,107,53,.15);color:#ff9500',
+    'low':    'background:rgba(255,214,10,.15);color:var(--a4)',
+    'medium': 'background:rgba(255,165,0,.15);color:orange',
+    'dead':   'background:rgba(85,85,110,.15);color:var(--muted)',
+    'healthy':'background:rgba(0,212,170,.15);color:var(--a2)',
+  };
+  const statusLabel={
+    'oos':'🔴 Out of Stock','critical':'⚠️ Critical','low':'🟡 Low Stock',
+    'medium':'🟠 Medium','dead':'💀 Dead','healthy':'✅ Healthy'
+  };
+
+  el.innerHTML=rows.slice(0,200).map(s=>`<tr>
+    <td><span style="color:var(--accent);font-weight:600;font-size:.78rem">${s.sku}</span></td>
+    <td title="${s.title}" style="max-width:180px;overflow:hidden;text-overflow:ellipsis">${s.title.slice(0,35)}${s.title.length>35?'...':''}</td>
+    <td>${s.brand}</td>
+    <td><strong>${s.live.toLocaleString('en-IN')}</strong></td>
+    <td><strong style="color:var(--a2)">${s.daily_7d>0?s.daily_7d.toFixed(1):'—'}</strong></td>
+    <td>${s.s7.toLocaleString('en-IN')}</td>
+    <td>${s.s30.toLocaleString('en-IN')}</td>
+    <td>${s.s90.toLocaleString('en-IN')}</td>
+    <td>${s.doi_7d>0?`<strong style="${s.doi_7d<=7?'color:var(--a5)':s.doi_7d<=14?'color:var(--a4)':'color:var(--text)'}">${s.doi_7d}d</strong>`:'—'}</td>
+    <td><span style="padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600;${statusStyle[s.status]||''}">${statusLabel[s.status]||s.status}</span></td>
+  </tr>`).join('');
+}
+
+// ── EXECUTIVE SUMMARY ──
+function buildExecutive(){
+  const F=D.forecast||{};
+  const inv=INV||{summary:{},skus:[]};
+  const S=inv.summary||{};
+
+  // Top SKUs this period
+  const top5=SKUS.slice(0,5);
+  const top5rows=top5.map((s,i)=>`<tr>
+    <td>${i+1}</td>
+    <td style="color:var(--accent);font-weight:600">${s.sku}</td>
+    <td>${s.name.slice(0,30)}</td>
+    <td>${s.total_units.toLocaleString('en-IN')}</td>
+    <td>${fR(s.total_revenue)}</td>
+    <td>${s.avg_cvr}%</td>
+    <td>${s.disc>0?s.disc+'%':'—'}</td>
+  </tr>`).join('');
+
+  // Brand summary
+  const brandRows=(D.brand_summary||[]).map(b=>`<tr>
+    <td style="color:var(--accent);font-weight:600">${b.brand}</td>
+    <td>${b.units.toLocaleString('en-IN')}</td>
+    <td>${fR(b.revenue)}</td>
+    <td>${b.skus}</td>
+  </tr>`).join('');
+
+  // Date range
+  const dateRange = D.dates?.length ? `${D.dates[0]} → ${D.dates[D.dates.length-1]} (${D.dates.length} days)` : '—';
+
+  document.getElementById('executive').innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;margin:0;">📊 Executive Summary</h2>
+        <p style="color:var(--muted);font-size:.8rem;margin:.25rem 0 0">${dateRange} · Generated ${D.generated}</p>
+      </div>
+      <button onclick="window.print()" style="padding:.5rem 1.2rem;background:var(--accent);border:none;border-radius:8px;color:#fff;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.8rem;">🖨️ Print / Save PDF</button>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="stats" style="margin-bottom:1rem;">
+      <div class="sc"><div class="sl">Total Units Sold</div><div class="sv" style="color:var(--accent)">${fN(D.total_units)}</div><div class="ss">${dateRange}</div></div>
+      <div class="sc"><div class="sl">Total Revenue</div><div class="sv" style="color:var(--a2)">${fR(D.total_revenue)}</div><div class="ss">Gross revenue</div></div>
+      <div class="sc"><div class="sl">Avg Selling Price</div><div class="sv" style="color:var(--a3)">₹${D.avg_asp}</div><div class="ss">Overall ASP</div></div>
+      <div class="sc"><div class="sl">Total SKUs</div><div class="sv" style="color:var(--a4)">${fN(D.total_skus)}</div><div class="ss">Active products</div></div>
+    </div>
+
+    <!-- Inventory + Forecast row -->
+    <div class="crow c2" style="margin-bottom:1rem;">
+      <div class="cc" style="padding:1.1rem;">
+        <div class="ct" style="margin-bottom:.85rem;">📦 Inventory Snapshot</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;">
+          ${[
+            ['Live Stock', (inv.total_live||0).toLocaleString('en-IN'), 'var(--a2)'],
+            ['🔴 OOS', (S.oos||0), 'var(--a5)'],
+            ['⚠️ Critical', (S.critical||0), '#ff9500'],
+            ['🟡 Low Stock', (S.low||0), 'var(--a4)'],
+            ['💀 Dead Inv.', (S.dead||0), 'var(--muted)'],
+            ['✅ Healthy', (S.healthy||0), 'var(--a2)'],
+          ].map(([l,v,c])=>`<div style="background:var(--surface);border-radius:8px;padding:.6rem;text-align:center;">
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase">${l}</div>
+            <div style="font-size:1.2rem;font-weight:800;color:${c}">${v}</div>
+          </div>`).join('')}
+        </div>
+      </div>
+      <div class="cc" style="padding:1.1rem;">
+        <div class="ct" style="margin-bottom:.85rem;">📈 7-Day Revenue Forecast</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;margin-bottom:.5rem;">
+          <div style="background:var(--surface);border-radius:8px;padding:.75rem;text-align:center;">
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase">Forecast Revenue</div>
+            <div style="font-size:1.1rem;font-weight:800;color:var(--a2)">${fR(F.total_revenue||0)}</div>
+            <div style="font-size:.65rem;color:var(--muted)">next 7 days</div>
+          </div>
+          <div style="background:var(--surface);border-radius:8px;padding:.75rem;text-align:center;">
+            <div style="font-size:.62rem;color:var(--muted);text-transform:uppercase">Forecast Units</div>
+            <div style="font-size:1.1rem;font-weight:800;color:var(--accent)">${fN(F.total_units||0)}</div>
+            <div style="font-size:.65rem;color:var(--muted)">next 7 days</div>
+          </div>
+        </div>
+        <div style="font-size:.72rem;color:var(--muted);text-align:center;">
+          ${(F.trend_revenue||0)<0?'📉 Revenue trending down':'📈 Revenue trending up'} · 
+          Daily avg last 7d: ${fR(F.avg7_revenue||0)}
+        </div>
+      </div>
+    </div>
+
+    <!-- Top SKUs table -->
+    <div class="tcard" style="margin-bottom:1rem;">
+      <div class="tt"><div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">🏆 Top 5 SKUs — Period Performance</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>#</th><th>SKU</th><th>Product</th><th>Units</th><th>Revenue</th><th>CVR</th><th>Discount</th></tr></thead>
+        <tbody>${top5rows}</tbody>
+      </table></div>
+    </div>
+
+    <!-- Brand summary -->
+    <div class="tcard">
+      <div class="tt"><div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">🏷️ Brand Performance</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Brand</th><th>Units</th><th>Revenue</th><th>SKUs</th></tr></thead>
+        <tbody>${brandRows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+// ── REVENUE FORECAST ──
+function buildForecast(){
+  const F=D.forecast||{};
+  if(!F.dates||!F.dates.length){
+    document.getElementById('forecast').innerHTML='<div class="loading" style="color:var(--muted)">No forecast data available. Need at least 7 days of data.</div>';
+    return;
+  }
+
+  const trendDir = F.trend_revenue<0 ? '📉 Downward' : '📈 Upward';
+  const trendCol = F.trend_revenue<0 ? 'var(--a5)' : 'var(--a2)';
+  const revChange = F.avg7_revenue>0 ? Math.round((F.total_revenue/7 - F.avg7_revenue)/F.avg7_revenue*100) : 0;
+  const revChangeSign = revChange>=0?'+':'';
+
+  document.getElementById('forecast').innerHTML=`
+    <div class="sh"><h2>📈 Revenue Forecast — Next 7 Days</h2>
+      <p>Based on linear trend from your last ${D.dates?.length||0} days of data</p></div>
+
+    <div class="stats" style="margin-bottom:1rem;">
+      <div class="sc"><div class="sl">Forecast Revenue (7d)</div><div class="sv" style="color:var(--a2)">${fR(F.total_revenue)}</div><div class="ss">Next 7 days total</div></div>
+      <div class="sc"><div class="sl">Forecast Units (7d)</div><div class="sv" style="color:var(--accent)">${fN(F.total_units)}</div><div class="ss">Next 7 days total</div></div>
+      <div class="sc"><div class="sl">Revenue Trend</div><div class="sv" style="color:${trendCol}">${trendDir}</div><div class="ss">${Math.abs(F.trend_revenue).toLocaleString('en-IN')}/day change</div></div>
+      <div class="sc"><div class="sl">vs Last 7D Avg</div><div class="sv" style="color:${revChange>=0?'var(--a2)':'var(--a5)'}">${revChangeSign}${revChange}%</div><div class="ss">Daily avg comparison</div></div>
+    </div>
+
+    <div class="crow c2" style="margin-bottom:1rem;">
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--a2)"></span>Revenue — Actual vs Forecast</div><canvas id="fcRevChart"></canvas></div>
+      <div class="cc"><div class="ct"><span class="dot" style="background:var(--accent)"></span>Units — Actual vs Forecast</div><canvas id="fcUnitChart"></canvas></div>
+    </div>
+
+    <div class="tcard">
+      <div class="tt"><div style="font-family:'Syne',sans-serif;font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;">📅 Day-wise Forecast</div></div>
+      <div class="tw"><table>
+        <thead><tr><th>Date</th><th>Forecast Units</th><th>Forecast Revenue</th><th>vs Last 7D Avg (Units)</th><th>vs Last 7D Avg (Revenue)</th></tr></thead>
+        <tbody>${F.dates.map((d,i)=>{
+          const udiff = Math.round((F.units[i]-F.avg7_units)/F.avg7_units*100);
+          const rdiff = Math.round((F.revenue[i]-F.avg7_revenue)/F.avg7_revenue*100);
+          const uc = udiff>=0?'color:var(--a2)':'color:var(--a5)';
+          const rc = rdiff>=0?'color:var(--a2)':'color:var(--a5)';
+          return `<tr>
+            <td><strong>${d}</strong></td>
+            <td>${F.units[i].toLocaleString('en-IN')}</td>
+            <td>${fR(F.revenue[i])}</td>
+            <td style="${uc}">${udiff>=0?'+':''}${udiff}%</td>
+            <td style="${rc}">${rdiff>=0?'+':''}${rdiff}%</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table></div>
+    </div>
+
+    <div style="margin-top:1rem;padding:.85rem 1rem;background:rgba(255,214,10,.07);border:1px solid rgba(255,214,10,.2);border-radius:10px;font-size:.78rem;color:var(--muted);">
+      ⚠️ <strong style="color:var(--a4)">Disclaimer:</strong> Forecast is based on linear trend only. Actual results may vary due to promotions, seasonality, or platform changes.
+    </div>`;
+
+  setTimeout(()=>{
+    // Combined actual + forecast revenue chart
+    const allDates   = [...(D.dates||[]), ...F.dates];
+    const actualRev  = [...(D.date_revenue||[]), ...F.dates.map(()=>null)];
+    const forecastRev= [...(D.dates||[]).map(()=>null), ...F.revenue];
+
+    mkLine('fcRevChart', allDates, [
+      {label:'Actual Revenue',   data:actualRev,   borderColor:'#00d4aa', backgroundColor:'rgba(0,212,170,.08)', fill:true, tension:.4, spanGaps:false},
+      {label:'Forecast Revenue', data:forecastRev, borderColor:'#ffd60a', backgroundColor:'rgba(255,214,10,.08)', fill:true, tension:.4, spanGaps:false, borderDash:[6,3]},
+    ]);
+
+    const actualUnits  = [...(D.date_units||[]), ...F.dates.map(()=>null)];
+    const forecastUnits= [...(D.dates||[]).map(()=>null), ...F.units];
+    mkLine('fcUnitChart', allDates, [
+      {label:'Actual Units',   data:actualUnits,   borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,.08)', fill:true, tension:.4, spanGaps:false},
+      {label:'Forecast Units', data:forecastUnits, borderColor:'#7b61ff', backgroundColor:'rgba(123,97,255,.08)', fill:true, tension:.4, spanGaps:false, borderDash:[6,3]},
+    ]);
+  },50);
+}
+
+// ── TABS ──
+const built={};
+function show(id,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(!built[id]){
+    built[id]=true;
+    if(id==='topskus')buildTopSKUs();
+    else if(id==='brands')buildBrands();
+    else if(id==='datewise')buildDatewise();
+    else if(id==='deadstock')buildDeadStock();
+    else if(id==='rpu')buildRPU();
+    else if(id==='bestday')buildBestDay();
+    else if(id==='inventory')buildInventory();
+    else if(id==='executive')buildExecutive();
+    else if(id==='forecast')buildForecast();
+    else if(id==='discount')buildDiscount();
+    else if(id==='targetvs')buildTargetVsActual();
+  }
+}
+
+// ── INIT ──
+// Load both data files
+Promise.all([
+  fetch('dashboard_data.json').then(r=>r.json()),
+  fetch('inventory_data.json').then(r=>r.json()).catch(()=>null)
+]).then(([data, invData])=>{
+    D=data;
+    INV=invData;
+    AVG=D.avg_cvr||0;
+    // Build SKUS from compact format
+    SKUS=D.skus.map(s=>{
+      const pr=D.products[s.i];
+      const daily=s.d.map(dd=>({units:dd[0],revenue:dd[1],asp:dd[2],cvr:dd[3]}));
+      return{sku:pr.s,name:pr.p,brand:pr.b,category:pr.c,vertical:pr.v,
+        total_units:s.u,total_revenue:s.r,avg_asp:s.a,avg_cvr:s.c,rpu:s.rpu,
+        mrp:s.mrp||0,disc:s.disc||0,daily};
+    });
+    // Build DEAD from compact format
+    DEAD=D.dead_stock.map(ds=>{
+      const pr=D.products[ds.i];
+      return{sku:pr.s,name:pr.p,brand:pr.b,category:pr.c,total_views:ds.tv};
+    });
+    document.getElementById('genTime').textContent=D.generated;
+    document.getElementById('footer').textContent='Flipkart SKU Dashboard · '+D.generated+' · '+D.report_name;
+    buildOverview();
+    built['overview']=true;
+  }).catch(err=>{
+    document.getElementById('overview').innerHTML=`<div class="loading" style="color:var(--a5)">
+      ❌ Could not load data. Make sure server is running.<br><br>
+      <code style="background:var(--card);padding:.4rem .8rem;border-radius:6px">python -m http.server 8080</code>
+    </div>`;
+    console.error(err);
+  });
+</script>
+</body></html>
