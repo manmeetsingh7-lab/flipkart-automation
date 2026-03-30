@@ -721,14 +721,16 @@ function dwRenderCharts(brand){
   if(el3) el3.textContent=lbl;
 
   // Get data for selected brand
-  let units, revenue;
+  let units, revenue, mrpRevenue;
   if(brand==='All Brands'){
-    units   = D.date_units;
-    revenue = D.date_revenue;
+    units      = D.date_units;
+    revenue    = D.date_revenue;
+    mrpRevenue = D.date_mrp_revenue || D.dates.map(()=>0);
   } else {
-    const bd = D.brand_date[brand];
-    units   = bd ? bd.sales   : D.dates.map(()=>0);
-    revenue = bd ? bd.revenue : D.dates.map(()=>0);
+    const bd   = D.brand_date[brand];
+    units      = bd ? bd.sales      : D.dates.map(()=>0);
+    revenue    = bd ? bd.revenue    : D.dates.map(()=>0);
+    mrpRevenue = bd ? (bd.mrp_revenue || D.dates.map(()=>0)) : D.dates.map(()=>0);
   }
 
   // Destroy existing charts
@@ -744,7 +746,7 @@ function dwRenderCharts(brand){
     tbody.innerHTML = D.dates.map((d,i)=>{
       const u      = Math.round(units[i]||0);
       const r      = Math.round(revenue[i]||0);
-      const mrpRev = Math.round((D.date_mrp_revenue?.[i]||0));
+      const mrpRev = Math.round(mrpRevenue[i]||0);
       const asp    = u>0?Math.round(r/u):0;
       return `<tr>
         <td><strong>${d}</strong></td>
