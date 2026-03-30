@@ -679,12 +679,13 @@ function buildDatewise(){
       </div>
       <div class="day-table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Units Sold</th><th>Revenue</th><th>Avg ASP</th></tr></thead>
+          <thead><tr><th>Date</th><th>Units Sold</th><th>MRP Sales (₹)</th><th>Net Sales (₹)</th><th>Avg ASP</th></tr></thead>
           <tbody id="dwTbody">${D.dates.map((date,i)=>`<tr>
             <td><strong>${date}</strong></td>
-            <td><strong>${fN(D.date_units[i])}</strong></td>
-            <td>${fR(D.date_revenue[i])}</td>
-            <td>${D.date_asp[i]>0?fR(D.date_asp[i]):'—'}</td>
+            <td><strong>${Math.round(D.date_units[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td style="color:var(--a2)"><strong>₹${Math.round(D.date_mrp_revenue?.[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td style="color:var(--accent)"><strong>₹${Math.round(D.date_revenue[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td>${D.date_asp[i]>0?'₹'+Math.round(D.date_asp[i]).toLocaleString('en-IN'):'—'}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>
@@ -741,13 +742,15 @@ function dwRenderCharts(brand){
   const tbody = document.getElementById('dwTbody');
   if(tbody){
     tbody.innerHTML = D.dates.map((d,i)=>{
-      const u   = Math.round(units[i]||0);
-      const r   = Math.round(revenue[i]||0);
-      const asp = u>0?Math.round(r/u):0;
+      const u      = Math.round(units[i]||0);
+      const r      = Math.round(revenue[i]||0);
+      const mrpRev = Math.round((D.date_mrp_revenue?.[i]||0));
+      const asp    = u>0?Math.round(r/u):0;
       return `<tr>
         <td><strong>${d}</strong></td>
         <td><strong>${u.toLocaleString('en-IN')}</strong></td>
-        <td>${fR(r)}</td>
+        <td style="color:var(--a2)"><strong>₹${mrpRev.toLocaleString('en-IN')}</strong></td>
+        <td style="color:var(--accent)"><strong>₹${r.toLocaleString('en-IN')}</strong></td>
         <td>${asp>0?'₹'+asp.toLocaleString('en-IN'):'—'}</td>
       </tr>`;
     }).join('');
