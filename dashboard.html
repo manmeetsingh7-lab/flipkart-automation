@@ -316,7 +316,7 @@ footer{text-align:center;padding:1rem;color:var(--muted);font-size:.68rem;
 <script>
 const GC='#1a1a2e', TC='#55556e';
 let D=null, CH={}, RECS=[], SKUS=[], INV=null, AVG=0, DEAD=[];
-window.AI_KEY = 'AIzaSyAOcbClM_-PX8KkmM6S1Fb-7Qk-E7Vqc4w';
+window.AI_KEY = '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';
 
 function fN(n){return Math.round(+n).toLocaleString('en-IN');}
 function fR(n){
@@ -1983,27 +1983,24 @@ function buildDashboardContext(){
 
 async function callClaude(messages){
   const key = window.AI_KEY || '';
-  if(!key) return 'No API key configured. Please add GEMINI_API_KEY to your .env file and regenerate dashboard.';
+  if(!key) return 'No API key configured. Please add GROQ_API_KEY to your .env file and regenerate dashboard.';
   try {
-    const contents = messages.map(m=>({
-      role: m.role==='assistant'?'model':'user',
-      parts:[{text:m.content}]
-    }));
     const resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
         method:'POST',
-        headers:{'Content-Type':'application/json'},
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
         body: JSON.stringify({
-          system_instruction:{parts:[{text:buildDashboardContext()}]},
-          contents: contents,
-          generationConfig:{maxOutputTokens:800, temperature:0.7}
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 800,
+          temperature: 0.7,
+          messages: [{role:'system', content:buildDashboardContext()}].concat(messages)
         })
       }
     );
     if(!resp.ok){const e=await resp.json();return 'API Error: '+(e.error&&e.error.message?e.error.message:resp.status);}
     const data = await resp.json();
-    return (data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0])?data.candidates[0].content.parts[0].text:'No response';
+    return (data.choices&&data.choices[0]&&data.choices[0].message)?data.choices[0].message.content:'No response';
   } catch(e){ return 'Error: '+e.message; }
 }
 
