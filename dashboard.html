@@ -1925,23 +1925,16 @@ function buildForecast(){
   },50);
 }
 
+
 // ── AI ADVISOR ──
-const AI_KEY = ''; // Set via window.AI_KEY or prompt
 let aiFloatOpen = false;
 let aiChatHistory = [];
 let aiFloatHistory = [];
-
-function getAIKey(){
-  return window.AI_KEY || localStorage.getItem('fk_ai_key') || '';
-}
 
 function buildDashboardContext(){
   if(!D) return '';
   const topSkus = [...SKUS].sort((a,b)=>b.total_units-a.total_units).slice(0,10);
   const deadCount = DEAD.length;
-  const totalRev = D.total_revenue;
-  const totalUnits = D.total_units;
-  const avgAsp = D.avg_asp;
   const dates = D.dates || [];
   const lastDate = dates[dates.length-1] || 'N/A';
   const firstDate = dates[0] || 'N/A';
@@ -1949,101 +1942,86 @@ function buildDashboardContext(){
   const recentRevenue = (D.date_revenue||[]).slice(-7);
   const recentDates = dates.slice(-7);
   const brands = D.brand_summary || [];
-  const invData = INV?.skus || [];
+  const invData = INV && INV.skus ? INV.skus : [];
   const criticalInv = invData.filter(s=>s.status==='critical'||s.status==='oos').slice(0,5);
   const deadInv = invData.filter(s=>s.status==='dead').slice(0,5);
-
-  return \`You are an expert Flipkart Account Manager and e-commerce growth consultant with deep knowledge of:
-- Flipkart's search algorithm, ranking factors, and A9-like signals
-- Flipkart Ads (PLA, video ads, brand store), promotional tools (Big Billion Days, Flash sales)
-- Category-specific best practices for Beauty, Skincare, Haircare (Pilgrim, PHD brands)
-- Pricing strategy, discount laddering, MRP vs selling price dynamics on FK
-- Inventory management, replenishment signals, FBA vs non-FBA trade-offs
-- Conversion rate optimization on FK — images, content, reviews, Q&A
-- Competitor landscape: Mamaearth, Minimalist, Dot & Key, WOW, Plum on FK
-- How to read traffic reports, identify dead stock, push slow movers
-
-SELLER ACCOUNT DATA (${firstDate} to ${lastDate}):
-- Total Units Sold: ${fN(totalUnits)}
-- Total Revenue: ${fR(totalRev)}
-- Avg Selling Price: ₹${Math.round(avgAsp)}
-- Total SKUs: ${D.total_skus}
-- Dead Stock SKUs: ${deadCount}
-
-LAST 7 DAYS TREND:
-${recentDates.map((d,i)=>\`  ${d}: ${fN(recentUnits[i]||0)} units | ${fR(recentRevenue[i]||0)}\`).join('\n')}
-
-BRAND PERFORMANCE:
-${brands.map(b=>\`  ${b.brand}: ${fN(b.units)} units | ${fR(b.revenue)} | ${b.skus} SKUs\`).join('\n')}
-
-TOP 10 SKUs:
-${topSkus.map((s,i)=>\`  ${i+1}. ${s.sku} (${s.brand}): ${fN(s.total_units)} units | ${fR(s.total_revenue)} | ASP ₹${Math.round(s.avg_asp)} | Disc ${s.disc}%\`).join('\n')}
-
-INVENTORY ALERTS:
-${criticalInv.length>0?'Critical/OOS: '+criticalInv.map(s=>\`${s.sku}(${s.doi_7d}d left)\`).join(', '):'No critical stock'}
-${deadInv.length>0?'Dead Inventory: '+deadInv.map(s=>s.sku).join(', '):'No dead inventory'}
-
-DEAD STOCK: ${deadCount} SKUs with views but zero sales.
-Top dead SKUs: ${DEAD.slice(0,5).map(s=>\`${s.sku}(${fN(s.total_views)} views)\`).join(', ')}
-
-Always give specific, actionable advice. Reference actual SKU IDs and numbers from the data above.
-Be direct and tactical — like a consultant who knows FK inside out.
-Format responses clearly with bullet points and bold key actions.\`;
+  const lines = [
+    'You are an expert Flipkart Account Manager and e-commerce growth consultant with deep knowledge of:',
+    '- Flipkart search algorithm, ranking, Buy Box, and conversion signals',
+    '- FK Ads (PLA, sponsored), Big Billion Days, flash sales strategy',
+    '- Beauty/Skincare/Haircare category best practices (Pilgrim, PHD brands)',
+    '- Pricing, discount laddering, MRP vs ASP dynamics on FK',
+    '- Inventory management, FBA replenishment, dead stock recovery',
+    '- CVR optimization: images, content, reviews, Q&A',
+    '- Competitor landscape: Mamaearth, Minimalist, Dot & Key, WOW, Plum',
+    '',
+    'SELLER DATA (' + firstDate + ' to ' + lastDate + '):',
+    '- Total Units: ' + fN(D.total_units),
+    '- Total Revenue: ' + fR(D.total_revenue),
+    '- Avg ASP: Rs.' + Math.round(D.avg_asp),
+    '- Total SKUs: ' + D.total_skus,
+    '- Dead Stock SKUs: ' + deadCount,
+    '',
+    'LAST 7 DAYS:',
+  ];
+  recentDates.forEach((d,i)=>lines.push('  '+d+': '+fN(recentUnits[i]||0)+' units | '+fR(recentRevenue[i]||0)));
+  lines.push('','BRANDS:');
+  brands.forEach(b=>lines.push('  '+b.brand+': '+fN(b.units)+' units | '+fR(b.revenue)+' | '+b.skus+' SKUs'));
+  lines.push('','TOP 10 SKUs:');
+  topSkus.forEach((s,i)=>lines.push('  '+(i+1)+'. '+s.sku+' ('+s.brand+'): '+fN(s.total_units)+' units | '+fR(s.total_revenue)+' | ASP Rs.'+Math.round(s.avg_asp)+' | Disc '+s.disc+'%'));
+  lines.push('','CRITICAL INVENTORY:');
+  if(criticalInv.length>0) criticalInv.forEach(s=>lines.push('  '+s.sku+' ('+s.doi_7d+' days left)'));
+  else lines.push('  None critical');
+  lines.push('','DEAD STOCK (top 5):');
+  DEAD.slice(0,5).forEach(s=>lines.push('  '+s.sku+' ('+fN(s.total_views)+' views, 0 sales)'));
+  lines.push('','Be specific, tactical, reference real SKU IDs. Use bullet points and bold for key actions.');
+  return lines.join('\n');
 }
 
-async function callClaude(messages, onChunk){
-  const key = window.AI_KEY || localStorage.getItem('fk_ai_key') || '';
-  if(!key) return 'No API key found. Please contact your admin.';
+async function callClaude(messages){
+  const key = window.AI_KEY || '';
+  if(!key) return 'No API key configured. Please add GEMINI_API_KEY to your .env file and regenerate dashboard.';
   try {
-    // Build Gemini format
-    const geminiMsgs = messages.map(m=>({
+    const contents = messages.map(m=>({
       role: m.role==='assistant'?'model':'user',
-      parts:[{text: m.content}]
+      parts:[{text:m.content}]
     }));
-    const systemCtx = buildDashboardContext();
     const resp = await fetch(
-      \`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=\${key}\`,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          system_instruction:{parts:[{text: systemCtx}]},
-          contents: geminiMsgs,
-          generationConfig:{maxOutputTokens:1000, temperature:0.7}
+          system_instruction:{parts:[{text:buildDashboardContext()}]},
+          contents: contents,
+          generationConfig:{maxOutputTokens:800, temperature:0.7}
         })
       }
     );
-    if(!resp.ok){
-      const err = await resp.json();
-      return \`API Error: \${err.error?.message||resp.status}\`;
-    }
+    if(!resp.ok){const e=await resp.json();return 'API Error: '+(e.error&&e.error.message?e.error.message:resp.status);}
     const data = await resp.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response';
-  } catch(e){
-    return \`Error: \${e.message}\`;
-  }
+    return (data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0])?data.candidates[0].content.parts[0].text:'No response';
+  } catch(e){ return 'Error: '+e.message; }
 }
 
 function mdToHtml(text){
-  return text
+  return (text||'')
     .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
     .replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/^### (.+)$/gm,'<div style="font-size:.82rem;font-weight:700;color:#a78bfa;margin:.5rem 0 .2rem;text-transform:uppercase;letter-spacing:.05em;">$1</div>')
-    .replace(/^## (.+)$/gm,'<div style="font-size:.88rem;font-weight:700;color:#00d4aa;margin:.6rem 0 .25rem;">$1</div>')
-    .replace(/^- (.+)$/gm,'<div style="padding:.2rem 0 .2rem .8rem;border-left:2px solid rgba(123,97,255,.3);margin:.15rem 0;">$1</div>')
+    .replace(/^### (.+)$/gm,'<div style="font-size:.8rem;font-weight:700;color:#a78bfa;margin:.4rem 0 .2rem;">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-size:.85rem;font-weight:700;color:#00d4aa;margin:.5rem 0 .2rem;">$1</div>')
+    .replace(/^- (.+)$/gm,'<div style="padding:.2rem 0 .2rem .8rem;border-left:2px solid rgba(123,97,255,.3);margin:.1rem 0;">$1</div>')
     .replace(/\n/g,'<br>');
 }
 
-function msgBubble(role, text, loading=false){
+function msgBubble(role, text, loading){
   const isUser = role==='user';
-  return \`<div style="display:flex;justify-content:\${isUser?'flex-end':'flex-start'};margin:.3rem 0;">
-    <div style="max-width:88%;padding:.6rem .85rem;border-radius:\${isUser?'12px 12px 2px 12px':'12px 12px 12px 2px'};
-      background:\${isUser?'linear-gradient(135deg,#7b61ff,#5b41df)':'rgba(255,255,255,.06)'};
-      border:\${isUser?'none':'1px solid rgba(123,97,255,.15)'};
-      font-size:.78rem;line-height:1.55;color:var(--text);">
-      \${loading?'<span class="ai-typing">Thinking<span>.</span><span>.</span><span>.</span></span>':mdToHtml(text)}
-    </div>
-  </div>\`;
+  const bg = isUser?'linear-gradient(135deg,#7b61ff,#5b41df)':'rgba(255,255,255,.06)';
+  const br = isUser?'12px 12px 2px 12px':'12px 12px 12px 2px';
+  const bd = isUser?'none':'1px solid rgba(123,97,255,.15)';
+  const jc = isUser?'flex-end':'flex-start';
+  const inner = loading?'<span class="ai-typing">Thinking<span>.</span><span>.</span><span>.</span></span>':mdToHtml(text);
+  return '<div style="display:flex;justify-content:'+jc+';margin:.3rem 0;"><div style="max-width:88%;padding:.6rem .85rem;border-radius:'+br+';background:'+bg+';border:'+bd+';font-size:.78rem;line-height:1.55;color:var(--text);">'+inner+'</div></div>';
 }
 
 // ── FLOATING CHAT ──
@@ -2052,11 +2030,11 @@ function toggleFloatChat(){
   const win = document.getElementById('aiFloatWindow');
   win.style.display = aiFloatOpen ? 'flex' : 'none';
   if(aiFloatOpen && document.getElementById('aiFloatMsgs').children.length===0){
-    appendFloatMsg('assistant', "👋 Hey! I'm your FK Account Manager.\n\nI have full visibility into your sales, SKUs, inventory and brand performance.\n\nAsk me anything — why sales dropped, which SKUs to push, discount strategy, dead stock fixes, or anything else!");
+    appendFloatMsg('assistant', "Hey! I'm your FK Account Manager. Ask me anything about your sales, SKUs, inventory or strategy!");
   }
 }
 
-function appendFloatMsg(role, text, loading=false){
+function appendFloatMsg(role, text, loading){
   const msgs = document.getElementById('aiFloatMsgs');
   const div = document.createElement('div');
   div.innerHTML = msgBubble(role, text, loading);
@@ -2081,101 +2059,72 @@ async function sendFloatMsg(){
 
 function quickQ(q){
   document.getElementById('aiFloatInput').value = q;
-  // open float if not open
   if(!aiFloatOpen) toggleFloatChat();
-  setTimeout(()=>sendFloatMsg(), 100);
+  setTimeout(function(){sendFloatMsg();}, 100);
 }
 
 // ── AI ADVISOR TAB ──
+const INSIGHT_TITLES = ['📊 Overall Performance','💀 Dead Stock Action Plan','🏷️ Discount & Pricing Strategy','📦 Inventory Alerts','🚀 Growth Opportunities','⚠️ What Went Wrong & Recovery'];
+const INSIGHT_PROMPTS = [
+  'Analyze overall sales performance. Look at revenue trends, best/worst days, units sold. Give a sharp 5-point executive summary with actual numbers from the data.',
+  'Analyze dead stock SKUs — they have views but zero sales. Give a specific 5-step recovery plan. Name actual SKUs and exact actions.',
+  'Is the discount % correct for FK beauty/skincare category? What is the optimal range? Name 3 specific SKUs that need price correction urgently.',
+  'Review inventory — which SKUs are critical (running out soon)? What revenue is at risk? Give a prioritized reorder list.',
+  'What are the top 3 growth opportunities for next 30 days? Be specific — name SKUs, actions, and expected impact.',
+  'Sales dropped recently. Diagnose the exact reasons and give a concrete 5-step recovery plan executable this week.'
+];
+
 function buildAIAdvisor(){
-  document.getElementById('aiadvisor').innerHTML=\`
-    <style>
-    .ai-typing span{animation:blink 1.2s infinite;opacity:0;}
-    .ai-typing span:nth-child(2){animation-delay:.2s;}
-    .ai-typing span:nth-child(3){animation-delay:.4s;}
-    @keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}
-    .insight-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.75rem;}
-    .insight-card.loading-card{border-color:rgba(123,97,255,.2);}
-    .insight-header{font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem;}
-    .ai-chat-msg{display:flex;flex-direction:column;gap:.5rem;padding:.5rem 0;}
-    </style>
-    <div style="display:grid;grid-template-columns:1fr 420px;gap:1.2rem;height:calc(100vh - 160px);">
+  var insightCards = INSIGHT_TITLES.map(function(title,i){
+    return '<div class="insight-card" id="aiInsight_'+i+'" style="background:var(--card);border:1px solid rgba(123,97,255,.2);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.75rem;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#a78bfa;margin-bottom:.5rem;">'+title+'</div>'
+      +'<div id="aiInsightBody_'+i+'" style="font-size:.78rem;color:var(--muted);">'
+      +'<span class="ai-typing">Analyzing your data<span>.</span><span>.</span><span>.</span></span>'
+      +'</div></div>';
+  }).join('');
 
-      <!-- LEFT: Auto Insights -->
-      <div style="overflow-y:auto;padding-right:.5rem;">
-        <div style="font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:1rem;color:#a78bfa;">
-          🤖 AI Auto Insights — Your FK Account Review
-        </div>
-        <div id="aiInsightsContainer">
-          \${['📊 Overall Performance','💀 Dead Stock Action Plan','🏷️ Discount & Pricing Strategy','📦 Inventory Alerts','🚀 Growth Opportunities','⚠️ What Went Wrong & How to Fix'].map((title,i)=>\`
-            <div class="insight-card loading-card" id="aiInsight_\${i}">
-              <div class="insight-header" style="color:#a78bfa;">\${title}</div>
-              <div class="ai-typing" style="color:var(--muted);font-size:.78rem;">Analyzing your data<span>.</span><span>.</span><span>.</span></div>
-            </div>\`).join('')}
-        </div>
-      </div>
+  var quickBtns = ['Why did sales drop recently?','Which SKUs should I run ads on?','How to fix dead stock?','Best discount strategy this week?','Compare Pilgrim vs PHD','How to improve CVR?','Inventory reorder alerts?','What FK promotions to prepare for?']
+    .map(function(q){ return '<button onclick="tabQuickQ(\''+q+'\')" style="font-size:.65rem;padding:.25rem .55rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap;">'+q+'</button>'; })
+    .join('');
 
-      <!-- RIGHT: Chat -->
-      <div style="display:flex;flex-direction:column;background:var(--card);border:1px solid rgba(123,97,255,.25);border-radius:14px;overflow:hidden;">
-        <div style="padding:.85rem 1rem;background:linear-gradient(135deg,rgba(123,97,255,.2),rgba(0,212,170,.1));border-bottom:1px solid rgba(123,97,255,.15);">
-          <div style="font-size:.82rem;font-weight:700;color:#a78bfa;font-family:'Syne',sans-serif;">🤖 Ask Your FK Account Manager</div>
-          <div style="font-size:.7rem;color:var(--muted);margin-top:.15rem;">Full access to your data + FK expertise</div>
-        </div>
-        <div id="aiTabMsgs" style="flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;"></div>
-        <!-- Quick Questions -->
-        <div style="padding:.5rem .75rem;border-top:1px solid rgba(123,97,255,.1);display:flex;gap:.35rem;flex-wrap:wrap;">
-          \${[
-            "Why did sales drop recently?",
-            "Which SKUs should I run ads on?",
-            "How to fix dead stock?",
-            "Best discount strategy this week?",
-            "Compare Pilgrim vs PHD",
-            "What's my best performing day?",
-            "How to improve CVR?",
-            "Inventory reorder alerts?"
-          ].map(q=>\`<button onclick="tabQuickQ('\${q}')"
-            style="font-size:.65rem;padding:.25rem .55rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">\${q}</button>\`).join('')}
-        </div>
-        <div style="padding:.6rem;border-top:1px solid rgba(123,97,255,.15);display:flex;gap:.4rem;">
-          <input id="aiTabInput" type="text" placeholder="Ask anything about your Flipkart business..."
-            style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(123,97,255,.3);border-radius:8px;padding:.55rem .8rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;"
-            onkeydown="if(event.key==='Enter')sendTabMsg()">
-          <button onclick="sendTabMsg()"
-            style="background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;border-radius:8px;padding:.55rem 1rem;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700;">Send</button>
-        </div>
-      </div>
-    </div>\`;
+  document.getElementById('aiadvisor').innerHTML =
+    '<style>.ai-typing span{animation:blink 1.2s infinite;opacity:0;}.ai-typing span:nth-child(2){animation-delay:.2s;}.ai-typing span:nth-child(3){animation-delay:.4s;}@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}</style>'
+    +'<div style="display:grid;grid-template-columns:1fr 420px;gap:1.2rem;height:calc(100vh - 160px);">'
+    +'<div style="overflow-y:auto;padding-right:.5rem;">'
+    +'<div style="font-family:\'Syne\',sans-serif;font-size:.88rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#a78bfa;margin-bottom:1rem;">🤖 AI Auto Insights — Your FK Account Review</div>'
+    +insightCards
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;background:var(--card);border:1px solid rgba(123,97,255,.25);border-radius:14px;overflow:hidden;">'
+    +'<div style="padding:.85rem 1rem;background:linear-gradient(135deg,rgba(123,97,255,.2),rgba(0,212,170,.1));border-bottom:1px solid rgba(123,97,255,.15);">'
+    +'<div style="font-size:.82rem;font-weight:700;color:#a78bfa;font-family:\'Syne\',sans-serif;">🤖 Ask Your FK Account Manager</div>'
+    +'<div style="font-size:.7rem;color:var(--muted);margin-top:.15rem;">Full access to your data + FK expertise</div>'
+    +'</div>'
+    +'<div id="aiTabMsgs" style="flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;"></div>'
+    +'<div style="padding:.5rem .75rem;border-top:1px solid rgba(123,97,255,.1);display:flex;gap:.35rem;flex-wrap:wrap;">'+quickBtns+'</div>'
+    +'<div style="padding:.6rem;border-top:1px solid rgba(123,97,255,.15);display:flex;gap:.4rem;">'
+    +'<input id="aiTabInput" type="text" placeholder="Ask anything about your Flipkart business..." style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(123,97,255,.3);border-radius:8px;padding:.55rem .8rem;color:var(--text);font-size:.78rem;font-family:\'DM Sans\',sans-serif;outline:none;" onkeydown="if(event.key===\'Enter\')sendTabMsg()">'
+    +'<button onclick="sendTabMsg()" style="background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;border-radius:8px;padding:.55rem 1rem;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700;">Send</button>'
+    +'</div></div></div>';
 
-  // Welcome message in tab chat
-  appendTabMsg('assistant', "👋 Hey! I'm your dedicated FK Account Manager.\n\nI've analyzed your full account — "+fN(D.total_units)+" units sold, "+fR(D.total_revenue)+" revenue, "+DEAD.length+" dead SKUs, and "+D.total_skus+" active SKUs.\n\nAsk me anything or check the auto insights on the left!");
-
-  // Load all auto insights sequentially
+  appendTabMsg('assistant', '👋 Hey! I\'m your FK Account Manager. I\'ve analyzed your account — '+fN(D.total_units)+' units, '+fR(D.total_revenue)+' revenue, '+DEAD.length+' dead SKUs across '+D.total_skus+' SKUs. Auto insights loading on the left — ask me anything!');
   loadAutoInsights();
 }
 
-const INSIGHT_PROMPTS = [
-  "Analyze the overall sales performance for this account. Look at revenue trends, units sold, ASP changes across the date range. Identify the best and worst days. Give a sharp 5-point executive summary with specific numbers.",
-  "Look at the dead stock SKUs — they have views but zero sales. Give a specific action plan for the top dead SKUs. What are the likely reasons (price, images, reviews, competition) and exactly what should the seller do for each?",
-  "Analyze the discount % across SKUs. Are they discounting too much or too little? What's the optimal discount range for FK skincare/beauty category? Which SKUs need a price correction urgently?",
-  "Review the inventory data — which SKUs are critical (running out soon), which are dead (stock but no sales), which need reorder? Give a prioritized action list with estimated revenue at risk.",
-  "Based on the brand and SKU performance data, what are the top 3 growth opportunities? Which SKUs should get ads, which categories are trending, what FK promotional events should they prepare for?",
-  "What went wrong in the recent period? Identify the biggest drops, underperformers vs expectations, and give a concrete 5-step recovery plan the seller can execute this week."
-];
-
 async function loadAutoInsights(){
-  for(let i=0;i<INSIGHT_PROMPTS.length;i++){
-    const card = document.getElementById(\`aiInsight_\${i}\`);
-    if(!card) continue;
-    const reply = await callClaude([{role:'user',content:INSIGHT_PROMPTS[i]}]);
-    card.querySelector('.ai-typing').outerHTML = \`<div style="font-size:.78rem;line-height:1.6;color:var(--text);">\${mdToHtml(reply)}</div>\`;
-    card.style.borderColor = 'rgba(123,97,255,.3)';
+  for(var i=0;i<INSIGHT_PROMPTS.length;i++){
+    var body = document.getElementById('aiInsightBody_'+i);
+    if(!body) continue;
+    var reply = await callClaude([{role:'user',content:INSIGHT_PROMPTS[i]}]);
+    body.innerHTML = '<div style="font-size:.78rem;line-height:1.6;color:var(--text);">'+mdToHtml(reply)+'</div>';
+    var card = document.getElementById('aiInsight_'+i);
+    if(card) card.style.borderColor='rgba(123,97,255,.35)';
   }
 }
 
-function appendTabMsg(role, text, loading=false){
-  const msgs = document.getElementById('aiTabMsgs');
+function appendTabMsg(role, text, loading){
+  var msgs = document.getElementById('aiTabMsgs');
   if(!msgs) return null;
-  const div = document.createElement('div');
+  var div = document.createElement('div');
   div.innerHTML = msgBubble(role, text, loading);
   msgs.appendChild(div);
   msgs.scrollTop = msgs.scrollHeight;
@@ -2183,23 +2132,24 @@ function appendTabMsg(role, text, loading=false){
 }
 
 async function sendTabMsg(){
-  const inp = document.getElementById('aiTabInput');
-  const q = inp.value.trim();
+  var inp = document.getElementById('aiTabInput');
+  var q = inp.value.trim();
   if(!q) return;
   inp.value = '';
   appendTabMsg('user', q);
   aiChatHistory.push({role:'user', content: q});
-  const loadDiv = appendTabMsg('assistant','',true);
-  const reply = await callClaude(aiChatHistory);
+  var loadDiv = appendTabMsg('assistant','',true);
+  var reply = await callClaude(aiChatHistory);
   if(loadDiv) loadDiv.remove();
   aiChatHistory.push({role:'assistant', content: reply});
   appendTabMsg('assistant', reply);
 }
 
 function tabQuickQ(q){
-  const inp = document.getElementById('aiTabInput');
+  var inp = document.getElementById('aiTabInput');
   if(inp){ inp.value=q; sendTabMsg(); }
 }
+
 
 // ── TABS ──
 const built={};
