@@ -301,7 +301,10 @@ footer{text-align:center;padding:1rem;color:var(--muted);font-size:.68rem;
       <button onclick="sendFloatMsg()" style="background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;border-radius:8px;padding:.5rem .85rem;color:#fff;font-size:.8rem;cursor:pointer;font-weight:600;">→</button>
     </div>
     <div style="padding:.3rem .75rem .5rem;display:flex;gap:.35rem;flex-wrap:wrap;">
-      ${["Why did sales drop?","Top SKUs to push ads?","Dead stock fixes?","Discount recommendations?"].map(q=>`<button onclick="quickQ('${q}')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">${q}</button>`).join('')}
+      <button onclick="quickQ('Why did sales drop?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Why did sales drop?</button>
+      <button onclick="quickQ('Top SKUs to push ads?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Top SKUs for ads?</button>
+      <button onclick="quickQ('How to fix dead stock SKUs?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Dead stock fixes?</button>
+      <button onclick="quickQ('Best discount strategy this week?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Discount advice?</button>
     </div>
   </div>
   <!-- FAB Button -->
@@ -1987,7 +1990,7 @@ async function callClaude(messages){
       parts:[{text:m.content}]
     }));
     const resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+key,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+key,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
