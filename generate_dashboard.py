@@ -4,6 +4,17 @@ Run: python generate_dashboard.py
 Opens at: http://localhost:8080/dashboard.html
 Press Ctrl+C to stop
 """
+import sys, subprocess
+
+# ── Auto-install all required packages ──
+_required = {"pandas":"pandas","openpyxl":"openpyxl","requests":"requests","dotenv":"python-dotenv","numpy":"numpy"}
+for _mod, _pkg in _required.items():
+    try: __import__(_mod)
+    except ImportError:
+        print(f"📦 Installing {_pkg}...")
+        subprocess.check_call([sys.executable,"-m","pip","install",_pkg,"-q"])
+        print(f"✅ {_pkg} installed!")
+
 import json, webbrowser, time, threading, os
 import pandas as pd
 from pathlib import Path
@@ -94,7 +105,12 @@ def load_planned_discounts():
         planned = {}
         for _, row in data.iterrows():
             sku = str(row[1]).strip()
-            mrp = float(row[2]) if pd.notna(row[2]) else 0
+            # Safely parse MRP — skip if it's a string like a SKU ID
+            try:
+                mrp_val = row[2]
+                mrp = float(mrp_val) if pd.notna(mrp_val) and str(mrp_val).replace('.','',1).isdigit() else 0
+            except (ValueError, TypeError):
+                mrp = 0
             day_plan = {}
             for col_idx, date_str in date_cols.items():
                 val = row[col_idx]
@@ -404,14 +420,25 @@ def build_data(path=None):
         asp=('Average Selling Price', lambda x: round(float(x.replace(0,float('nan')).mean(skipna=True)) if x.replace(0,float('nan')).dropna().shape[0]>0 else 0, 0)),
     ).reindex(dates).fillna(0)
 
+    # ── MRP Revenue per day = sum(units × MRP) per SKU per day ──
+    mrp_lookup_temp = load_mrp()
+    df['_mrp'] = df['SKU Id'].astype(str).map(mrp_lookup_temp).fillna(0)
+    df['_mrp_revenue'] = df['Sales'] * df['_mrp']
+    dg_mrp = df.groupby('Impression Date')['_mrp_revenue'].sum().reindex(dates).fillna(0)
+    date_mrp_revenue = [round(float(v), 0) for v in dg_mrp.tolist()]
+
     brand_summary = [{"brand":b,"units":int(df[df['Brand']==b]['Sales'].sum()),
                       "revenue":round(float(df[df['Brand']==b]['Revenue'].sum()),0),
                       "skus":int(df[df['Brand']==b]['SKU Id'].nunique())} for b in brands]
 
     brand_date = {}
     for b in brands:
-        bdf = df[df['Brand']==b].groupby('Impression Date').agg(sales=('Sales','sum'),revenue=('Revenue','sum')).reindex(dates).fillna(0)
-        brand_date[b] = {"sales": bdf['sales'].tolist(), "revenue": bdf['revenue'].tolist()}
+        bdf = df[df['Brand']==b].groupby('Impression Date').agg(
+            sales=('Sales','sum'),
+            revenue=('Revenue','sum'),
+            mrp_revenue=('_mrp_revenue','sum')
+        ).reindex(dates).fillna(0)
+        brand_date[b] = {"sales": bdf['sales'].tolist(), "revenue": bdf['revenue'].tolist(), "mrp_revenue": bdf['mrp_revenue'].tolist()}
 
     cat_v  = df.groupby('Category')['Product Views'].sum().sort_values(ascending=False)
     cat_s  = df.groupby('Category')['Sales'].sum()
@@ -427,7 +454,7 @@ def build_data(path=None):
         "avg_asp":       avg_asp, "total_skus": len(skus_list),
         "products":      prods, "skus": skus_list, "dead_stock": dead_stock,
         "date_units":    dg['units'].tolist(), "date_revenue": dg['revenue'].tolist(),
-        "date_asp":      dg['asp'].tolist(), "brand_summary": brand_summary,
+        "date_asp":      dg['asp'].tolist(), "date_mrp_revenue": date_mrp_revenue, "brand_summary": brand_summary,
         "brand_date":    brand_date,
         "forecast":      __build_forecast(dg, dates),
         "target_vs_actual": target_vs_actual,  # all records stored compactly in sku_tv_summary
@@ -463,7 +490,232 @@ def build_data(path=None):
     return payload
 
 
-def generate_html(p):
+def get_ai_js():
+    return r"""
+// ── AI ADVISOR ──
+let aiFloatOpen = false;
+let aiChatHistory = [];
+let aiFloatHistory = [];
+
+function buildDashboardContext(){
+  if(!D) return '';
+  const topSkus = [...SKUS].sort((a,b)=>b.total_units-a.total_units).slice(0,10);
+  const deadCount = DEAD.length;
+  const dates = D.dates || [];
+  const lastDate = dates[dates.length-1] || 'N/A';
+  const firstDate = dates[0] || 'N/A';
+  const recentUnits = (D.date_units||[]).slice(-7);
+  const recentRevenue = (D.date_revenue||[]).slice(-7);
+  const recentDates = dates.slice(-7);
+  const brands = D.brand_summary || [];
+  const invData = INV && INV.skus ? INV.skus : [];
+  const criticalInv = invData.filter(s=>s.status==='critical'||s.status==='oos').slice(0,5);
+  const deadInv = invData.filter(s=>s.status==='dead').slice(0,5);
+  const lines = [
+    'You are an expert Flipkart Account Manager and e-commerce growth consultant with deep knowledge of:',
+    '- Flipkart search algorithm, ranking, Buy Box, and conversion signals',
+    '- FK Ads (PLA, sponsored), Big Billion Days, flash sales strategy',
+    '- Beauty/Skincare/Haircare category best practices (Pilgrim, PHD brands)',
+    '- Pricing, discount laddering, MRP vs ASP dynamics on FK',
+    '- Inventory management, FBA replenishment, dead stock recovery',
+    '- CVR optimization: images, content, reviews, Q&A',
+    '- Competitor landscape: Mamaearth, Minimalist, Dot & Key, WOW, Plum',
+    '',
+    'SELLER DATA (' + firstDate + ' to ' + lastDate + '):',
+    '- Total Units: ' + fN(D.total_units),
+    '- Total Revenue: ' + fR(D.total_revenue),
+    '- Avg ASP: Rs.' + Math.round(D.avg_asp),
+    '- Total SKUs: ' + D.total_skus,
+    '- Dead Stock SKUs: ' + deadCount,
+    '',
+    'LAST 7 DAYS:',
+  ];
+  recentDates.forEach((d,i)=>lines.push('  '+d+': '+fN(recentUnits[i]||0)+' units | '+fR(recentRevenue[i]||0)));
+  lines.push('','BRANDS:');
+  brands.forEach(b=>lines.push('  '+b.brand+': '+fN(b.units)+' units | '+fR(b.revenue)+' | '+b.skus+' SKUs'));
+  lines.push('','TOP 10 SKUs:');
+  topSkus.forEach((s,i)=>lines.push('  '+(i+1)+'. '+s.sku+' ('+s.brand+'): '+fN(s.total_units)+' units | '+fR(s.total_revenue)+' | ASP Rs.'+Math.round(s.avg_asp)+' | Disc '+s.disc+'%'));
+  lines.push('','CRITICAL INVENTORY:');
+  if(criticalInv.length>0) criticalInv.forEach(s=>lines.push('  '+s.sku+' ('+s.doi_7d+' days left)'));
+  else lines.push('  None critical');
+  lines.push('','DEAD STOCK (top 5):');
+  DEAD.slice(0,5).forEach(s=>lines.push('  '+s.sku+' ('+fN(s.total_views)+' views, 0 sales)'));
+  lines.push('','Be specific, tactical, reference real SKU IDs. Use bullet points and bold for key actions.');
+  return lines.join('\n');
+}
+
+async function callClaude(messages){
+  const key = window.AI_KEY || '';
+  if(!key) return 'No API key configured. Please add GROQ_API_KEY to your .env file and regenerate dashboard.';
+  try {
+    const resp = await fetch(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+        body: JSON.stringify({
+          model: 'llama-3.3-70b-versatile',
+          max_tokens: 800,
+          temperature: 0.7,
+          messages: [{role:'system', content:buildDashboardContext()}].concat(messages)
+        })
+      }
+    );
+    if(!resp.ok){const e=await resp.json();return 'API Error: '+(e.error&&e.error.message?e.error.message:resp.status);}
+    const data = await resp.json();
+    return (data.choices&&data.choices[0]&&data.choices[0].message)?data.choices[0].message.content:'No response';
+  } catch(e){ return 'Error: '+e.message; }
+}
+
+function mdToHtml(text){
+  return (text||'')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/^### (.+)$/gm,'<div style="font-size:.8rem;font-weight:700;color:#a78bfa;margin:.4rem 0 .2rem;">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-size:.85rem;font-weight:700;color:#00d4aa;margin:.5rem 0 .2rem;">$1</div>')
+    .replace(/^- (.+)$/gm,'<div style="padding:.2rem 0 .2rem .8rem;border-left:2px solid rgba(123,97,255,.3);margin:.1rem 0;">$1</div>')
+    .replace(/\n/g,'<br>');
+}
+
+function msgBubble(role, text, loading){
+  const isUser = role==='user';
+  const bg = isUser?'linear-gradient(135deg,#7b61ff,#5b41df)':'rgba(255,255,255,.06)';
+  const br = isUser?'12px 12px 2px 12px':'12px 12px 12px 2px';
+  const bd = isUser?'none':'1px solid rgba(123,97,255,.15)';
+  const jc = isUser?'flex-end':'flex-start';
+  const inner = loading?'<span class="ai-typing">Thinking<span>.</span><span>.</span><span>.</span></span>':mdToHtml(text);
+  return '<div style="display:flex;justify-content:'+jc+';margin:.3rem 0;"><div style="max-width:88%;padding:.6rem .85rem;border-radius:'+br+';background:'+bg+';border:'+bd+';font-size:.78rem;line-height:1.55;color:var(--text);">'+inner+'</div></div>';
+}
+
+// ── FLOATING CHAT ──
+function toggleFloatChat(){
+  aiFloatOpen = !aiFloatOpen;
+  const win = document.getElementById('aiFloatWindow');
+  win.style.display = aiFloatOpen ? 'flex' : 'none';
+  if(aiFloatOpen && document.getElementById('aiFloatMsgs').children.length===0){
+    appendFloatMsg('assistant', "Hey! I'm your FK Account Manager. Ask me anything about your sales, SKUs, inventory or strategy!");
+  }
+}
+
+function appendFloatMsg(role, text, loading){
+  const msgs = document.getElementById('aiFloatMsgs');
+  const div = document.createElement('div');
+  div.innerHTML = msgBubble(role, text, loading);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendFloatMsg(){
+  const inp = document.getElementById('aiFloatInput');
+  const q = inp.value.trim();
+  if(!q) return;
+  inp.value = '';
+  appendFloatMsg('user', q);
+  aiFloatHistory.push({role:'user', content: q});
+  const loadDiv = appendFloatMsg('assistant', '', true);
+  const reply = await callClaude(aiFloatHistory);
+  loadDiv.remove();
+  aiFloatHistory.push({role:'assistant', content: reply});
+  appendFloatMsg('assistant', reply);
+}
+
+function quickQ(q){
+  document.getElementById('aiFloatInput').value = q;
+  if(!aiFloatOpen) toggleFloatChat();
+  setTimeout(function(){sendFloatMsg();}, 100);
+}
+
+// ── AI ADVISOR TAB ──
+const INSIGHT_TITLES = ['📊 Overall Performance','💀 Dead Stock Action Plan','🏷️ Discount & Pricing Strategy','📦 Inventory Alerts','🚀 Growth Opportunities','⚠️ What Went Wrong & Recovery'];
+const INSIGHT_PROMPTS = [
+  'Analyze overall sales performance. Look at revenue trends, best/worst days, units sold. Give a sharp 5-point executive summary with actual numbers from the data.',
+  'Analyze dead stock SKUs — they have views but zero sales. Give a specific 5-step recovery plan. Name actual SKUs and exact actions.',
+  'Is the discount % correct for FK beauty/skincare category? What is the optimal range? Name 3 specific SKUs that need price correction urgently.',
+  'Review inventory — which SKUs are critical (running out soon)? What revenue is at risk? Give a prioritized reorder list.',
+  'What are the top 3 growth opportunities for next 30 days? Be specific — name SKUs, actions, and expected impact.',
+  'Sales dropped recently. Diagnose the exact reasons and give a concrete 5-step recovery plan executable this week.'
+];
+
+function buildAIAdvisor(){
+  var insightCards = INSIGHT_TITLES.map(function(title,i){
+    return '<div class="insight-card" id="aiInsight_'+i+'" style="background:var(--card);border:1px solid rgba(123,97,255,.2);border-radius:12px;padding:1rem 1.2rem;margin-bottom:.75rem;">'
+      +'<div style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#a78bfa;margin-bottom:.5rem;">'+title+'</div>'
+      +'<div id="aiInsightBody_'+i+'" style="font-size:.78rem;color:var(--muted);">'
+      +'<span class="ai-typing">Analyzing your data<span>.</span><span>.</span><span>.</span></span>'
+      +'</div></div>';
+  }).join('');
+
+  var quickBtns = ['Why did sales drop recently?','Which SKUs should I run ads on?','How to fix dead stock?','Best discount strategy this week?','Compare Pilgrim vs PHD','How to improve CVR?','Inventory reorder alerts?','What FK promotions to prepare for?']
+    .map(function(q){ return '<button onclick="tabQuickQ(\''+q+'\')" style="font-size:.65rem;padding:.25rem .55rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:\'DM Sans\',sans-serif;white-space:nowrap;">'+q+'</button>'; })
+    .join('');
+
+  document.getElementById('aiadvisor').innerHTML =
+    '<style>.ai-typing span{animation:blink 1.2s infinite;opacity:0;}.ai-typing span:nth-child(2){animation-delay:.2s;}.ai-typing span:nth-child(3){animation-delay:.4s;}@keyframes blink{0%,80%,100%{opacity:0}40%{opacity:1}}</style>'
+    +'<div style="display:grid;grid-template-columns:1fr 420px;gap:1.2rem;height:calc(100vh - 160px);">'
+    +'<div style="overflow-y:auto;padding-right:.5rem;">'
+    +'<div style="font-family:\'Syne\',sans-serif;font-size:.88rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#a78bfa;margin-bottom:1rem;">🤖 AI Auto Insights — Your FK Account Review</div>'
+    +insightCards
+    +'</div>'
+    +'<div style="display:flex;flex-direction:column;background:var(--card);border:1px solid rgba(123,97,255,.25);border-radius:14px;overflow:hidden;">'
+    +'<div style="padding:.85rem 1rem;background:linear-gradient(135deg,rgba(123,97,255,.2),rgba(0,212,170,.1));border-bottom:1px solid rgba(123,97,255,.15);">'
+    +'<div style="font-size:.82rem;font-weight:700;color:#a78bfa;font-family:\'Syne\',sans-serif;">🤖 Ask Your FK Account Manager</div>'
+    +'<div style="font-size:.7rem;color:var(--muted);margin-top:.15rem;">Full access to your data + FK expertise</div>'
+    +'</div>'
+    +'<div id="aiTabMsgs" style="flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.5rem;"></div>'
+    +'<div style="padding:.5rem .75rem;border-top:1px solid rgba(123,97,255,.1);display:flex;gap:.35rem;flex-wrap:wrap;">'+quickBtns+'</div>'
+    +'<div style="padding:.6rem;border-top:1px solid rgba(123,97,255,.15);display:flex;gap:.4rem;">'
+    +'<input id="aiTabInput" type="text" placeholder="Ask anything about your Flipkart business..." style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(123,97,255,.3);border-radius:8px;padding:.55rem .8rem;color:var(--text);font-size:.78rem;font-family:\'DM Sans\',sans-serif;outline:none;" onkeydown="if(event.key===\'Enter\')sendTabMsg()">'
+    +'<button onclick="sendTabMsg()" style="background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;border-radius:8px;padding:.55rem 1rem;color:#fff;font-size:.82rem;cursor:pointer;font-weight:700;">Send</button>'
+    +'</div></div></div>';
+
+  appendTabMsg('assistant', '👋 Hey! I\'m your FK Account Manager. I\'ve analyzed your account — '+fN(D.total_units)+' units, '+fR(D.total_revenue)+' revenue, '+DEAD.length+' dead SKUs across '+D.total_skus+' SKUs. Auto insights loading on the left — ask me anything!');
+  loadAutoInsights();
+}
+
+async function loadAutoInsights(){
+  for(var i=0;i<INSIGHT_PROMPTS.length;i++){
+    var body = document.getElementById('aiInsightBody_'+i);
+    if(!body) continue;
+    var reply = await callClaude([{role:'user',content:INSIGHT_PROMPTS[i]}]);
+    body.innerHTML = '<div style="font-size:.78rem;line-height:1.6;color:var(--text);">'+mdToHtml(reply)+'</div>';
+    var card = document.getElementById('aiInsight_'+i);
+    if(card) card.style.borderColor='rgba(123,97,255,.35)';
+  }
+}
+
+function appendTabMsg(role, text, loading){
+  var msgs = document.getElementById('aiTabMsgs');
+  if(!msgs) return null;
+  var div = document.createElement('div');
+  div.innerHTML = msgBubble(role, text, loading);
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+async function sendTabMsg(){
+  var inp = document.getElementById('aiTabInput');
+  var q = inp.value.trim();
+  if(!q) return;
+  inp.value = '';
+  appendTabMsg('user', q);
+  aiChatHistory.push({role:'user', content: q});
+  var loadDiv = appendTabMsg('assistant','',true);
+  var reply = await callClaude(aiChatHistory);
+  if(loadDiv) loadDiv.remove();
+  aiChatHistory.push({role:'assistant', content: reply});
+  appendTabMsg('assistant', reply);
+}
+
+function tabQuickQ(q){
+  var inp = document.getElementById('aiTabInput');
+  if(inp){ inp.value=q; sendTabMsg(); }
+}
+"""
+
+def generate_html(p, api_key=""):
+    ai_key_inject = f"window.AI_KEY = '{api_key}';" if api_key else "window.AI_KEY = localStorage.getItem('GROQ_KEY') || '';"
     return """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -676,6 +928,7 @@ footer{text-align:center;padding:1rem;color:var(--muted);font-size:.68rem;
   <button class="nb" data-pg="inventory"  onclick="show(this.dataset.pg,this)">📦 Inventory</button>
   <button class="nb" data-pg="executive"  onclick="show(this.dataset.pg,this)">📊 Summary</button>
   <button class="nb" data-pg="forecast"   onclick="show(this.dataset.pg,this)">📈 Forecast</button>
+  <button class="nb" data-pg="aiadvisor"  onclick="show(this.dataset.pg,this)" style="background:linear-gradient(135deg,rgba(123,97,255,.25),rgba(0,212,170,.15));border-color:rgba(123,97,255,.5);color:#a78bfa;">🤖 AI Advisor</button>
 </div>
 <div class="main">
 
@@ -743,12 +996,45 @@ footer{text-align:center;padding:1rem;color:var(--muted);font-size:.68rem;
   <div id="inventory"  class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
   <div id="executive"  class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
   <div id="forecast"   class="page"><div class="loading"><div class="spinner"></div>Loading...</div></div>
+  <div id="aiadvisor"  class="page"><div class="loading"><div class="spinner"></div>Loading AI Advisor...</div></div>
 </div>
 <footer id="footer">Flipkart SKU Dashboard</footer>
 
+<!-- ── FLOATING AI CHAT BUTTON ── -->
+<div id="aiFloat" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:.75rem;">
+  <!-- Chat Window -->
+  <div id="aiFloatWindow" style="display:none;width:380px;max-height:520px;background:#13131f;border:1px solid rgba(123,97,255,.4);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;">
+    <div style="padding:.85rem 1rem;background:linear-gradient(135deg,rgba(123,97,255,.3),rgba(0,212,170,.15));border-bottom:1px solid rgba(123,97,255,.2);display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:.5rem;">
+        <span style="font-size:1.1rem;">🤖</span>
+        <span style="font-size:.85rem;font-weight:700;color:#a78bfa;font-family:'Syne',sans-serif;">FK AI Account Manager</span>
+      </div>
+      <button onclick="toggleFloatChat()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;padding:0;">✕</button>
+    </div>
+    <div id="aiFloatMsgs" style="flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.6rem;max-height:340px;min-height:200px;"></div>
+    <div style="padding:.6rem;border-top:1px solid rgba(123,97,255,.15);display:flex;gap:.4rem;">
+      <input id="aiFloatInput" type="text" placeholder="Ask anything about your sales..."
+        style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(123,97,255,.3);border-radius:8px;padding:.5rem .75rem;color:var(--text);font-size:.78rem;font-family:'DM Sans',sans-serif;outline:none;"
+        onkeydown="if(event.key==='Enter')sendFloatMsg()">
+      <button onclick="sendFloatMsg()" style="background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;border-radius:8px;padding:.5rem .85rem;color:#fff;font-size:.8rem;cursor:pointer;font-weight:600;">→</button>
+    </div>
+    <div style="padding:.3rem .75rem .5rem;display:flex;gap:.35rem;flex-wrap:wrap;">
+      <button onclick="quickQ('Why did sales drop?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Why did sales drop?</button>
+      <button onclick="quickQ('Top SKUs to push ads?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Top SKUs for ads?</button>
+      <button onclick="quickQ('How to fix dead stock SKUs?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Dead stock fixes?</button>
+      <button onclick="quickQ('Best discount strategy this week?')" style="font-size:.65rem;padding:.2rem .5rem;border-radius:20px;border:1px solid rgba(123,97,255,.3);background:rgba(123,97,255,.08);color:#a78bfa;cursor:pointer;font-family:'DM Sans',sans-serif;">Discount advice?</button>
+    </div>
+  </div>
+  <!-- FAB Button -->
+  <button onclick="toggleFloatChat()" id="aiFloatBtn"
+    style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#7b61ff,#00d4aa);border:none;cursor:pointer;font-size:1.4rem;box-shadow:0 4px 20px rgba(123,97,255,.5);transition:transform .2s;"
+    onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">🤖</button>
+</div>
+
 <script>
 const GC='#1a1a2e', TC='#55556e';
-let D=null, CH={}, RECS=[], SKUS=[];
+let D=null, CH={}, RECS=[], SKUS=[], INV=null, AVG=0, DEAD=[];
+window.AI_KEY = '%%AI_KEY%%';
 
 function fN(n){return Math.round(+n).toLocaleString('en-IN');}
 function fR(n){
@@ -1145,12 +1431,13 @@ function buildDatewise(){
       </div>
       <div class="day-table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Units Sold</th><th>Revenue</th><th>Avg ASP</th></tr></thead>
+          <thead><tr><th>Date</th><th>Units Sold</th><th>MRP Sales (₹)</th><th>Net Sales (₹)</th><th>Avg ASP</th></tr></thead>
           <tbody id="dwTbody">${D.dates.map((date,i)=>`<tr>
             <td><strong>${date}</strong></td>
-            <td><strong>${fN(D.date_units[i])}</strong></td>
-            <td>${fR(D.date_revenue[i])}</td>
-            <td>${D.date_asp[i]>0?fR(D.date_asp[i]):'—'}</td>
+            <td><strong>${Math.round(D.date_units[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td style="color:var(--a2)"><strong>₹${Math.round(D.date_mrp_revenue?.[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td style="color:var(--accent)"><strong>₹${Math.round(D.date_revenue[i]||0).toLocaleString('en-IN')}</strong></td>
+            <td>${D.date_asp[i]>0?'₹'+Math.round(D.date_asp[i]).toLocaleString('en-IN'):'—'}</td>
           </tr>`).join('')}</tbody>
         </table>
       </div>
@@ -1186,14 +1473,16 @@ function dwRenderCharts(brand){
   if(el3) el3.textContent=lbl;
 
   // Get data for selected brand
-  let units, revenue;
+  let units, revenue, mrpRevenue;
   if(brand==='All Brands'){
-    units   = D.date_units;
-    revenue = D.date_revenue;
+    units      = D.date_units;
+    revenue    = D.date_revenue;
+    mrpRevenue = D.date_mrp_revenue || D.dates.map(()=>0);
   } else {
-    const bd = D.brand_date[brand];
-    units   = bd ? bd.sales   : D.dates.map(()=>0);
-    revenue = bd ? bd.revenue : D.dates.map(()=>0);
+    const bd   = D.brand_date[brand];
+    units      = bd ? bd.sales      : D.dates.map(()=>0);
+    revenue    = bd ? bd.revenue    : D.dates.map(()=>0);
+    mrpRevenue = bd ? (bd.mrp_revenue || D.dates.map(()=>0)) : D.dates.map(()=>0);
   }
 
   // Destroy existing charts
@@ -1207,13 +1496,15 @@ function dwRenderCharts(brand){
   const tbody = document.getElementById('dwTbody');
   if(tbody){
     tbody.innerHTML = D.dates.map((d,i)=>{
-      const u   = Math.round(units[i]||0);
-      const r   = Math.round(revenue[i]||0);
-      const asp = u>0?Math.round(r/u):0;
+      const u      = Math.round(units[i]||0);
+      const r      = Math.round(revenue[i]||0);
+      const mrpRev = Math.round(mrpRevenue[i]||0);
+      const asp    = u>0?Math.round(r/u):0;
       return `<tr>
         <td><strong>${d}</strong></td>
         <td><strong>${u.toLocaleString('en-IN')}</strong></td>
-        <td>${fR(r)}</td>
+        <td style="color:var(--a2)"><strong>₹${mrpRev.toLocaleString('en-IN')}</strong></td>
+        <td style="color:var(--accent)"><strong>₹${r.toLocaleString('en-IN')}</strong></td>
         <td>${asp>0?'₹'+asp.toLocaleString('en-IN'):'—'}</td>
       </tr>`;
     }).join('');
@@ -2355,6 +2646,8 @@ function buildForecast(){
   },50);
 }
 
+%%AI_JS%%
+
 // ── TABS ──
 const built={};
 function show(id,btn){
@@ -2375,6 +2668,7 @@ function show(id,btn){
     else if(id==='forecast')buildForecast();
     else if(id==='discount')buildDiscount();
     else if(id==='targetvs')buildTargetVsActual();
+    else if(id==='aiadvisor')buildAIAdvisor();
   }
 }
 
@@ -2417,6 +2711,16 @@ Promise.all([
 if __name__ == "__main__":
     p = build_data()
     html = generate_html(p)
+
+    # ── Inject Groq API key from .env ──
+    groq_key = os.getenv("GROQ_API_KEY") # No default "gsk_..." string here!
+    html = html.replace("window.AI_KEY = '%%AI_KEY%%';", f"window.AI_KEY = '{groq_key}';")
+    if groq_key:
+        log("✅ Groq API key injected into dashboard")
+
+    # ── Inject AI JS (uses raw string to avoid escape issues) ──
+    html = html.replace("%%AI_JS%%", get_ai_js())
+
     OUTPUT_HTML.write_text(html, encoding="utf-8")
     log(f"Dashboard saved: {OUTPUT_HTML.name}")
 
@@ -2441,74 +2745,69 @@ if __name__ == "__main__":
     share_path.write_text(standalone, encoding="utf-8")
     log(f"✅ Shareable file saved: dashboard_share.html ({share_path.stat().st_size//1024}KB)")
 
-    # ── Auto deploy to Netlify ──
+    # ── Auto deploy via GitHub → GitHub Pages ──
     import subprocess as sp
     import shutil
-    deploy_dir = Path(__file__).parent / "netlify_deploy"
-    deploy_dir.mkdir(exist_ok=True)
-    shutil.copy(share_path, deploy_dir / "index.html")
-    log("🚀 Deploying to Netlify...")
-    try:
-        # Try netlify CLI - check both possible paths
-        import shutil as sh
-        netlify_cmd = sh.which("netlify") or sh.which("netlify.cmd")
-        if not netlify_cmd:
-            # Try common npm global paths
-            import os
-            npm_paths = [
-                os.path.expanduser("~\AppData\Roaming\npm\netlify.cmd"),
-                os.path.expanduser("~/.npm-global/bin/netlify"),
-                "C:\Program Files\nodejs\netlify.cmd",
-            ]
-            for p in npm_paths:
-                if os.path.exists(p):
-                    netlify_cmd = p
-                    break
-        if not netlify_cmd:
-            raise FileNotFoundError("Netlify CLI not found")
-        result = sp.run(
-            [netlify_cmd, "deploy", "--dir", str(deploy_dir), "--prod", "--site", "2a759385-b7a9-4968-ad96-ae8ae6f97ae6"],
-            capture_output=True, text=True, cwd=str(Path(__file__).parent),
-            encoding='utf-8', errors='ignore'
-        )
-        if result.returncode == 0:
-            import re
-            stdout = result.stdout or ""
-            url_match = re.search(r'https://[a-z0-9-]+\.netlify\.app', stdout)
-            url = url_match.group(0) if url_match else "https://scintillating-semolina-f4352d.netlify.app"
-            log(f"✅ Dashboard live at: {url}")
 
-            # Send Telegram notification with URL
-            try:
-                import requests as req
-                tg_token   = os.getenv("TELEGRAM_TOKEN")
-                tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
-                if tg_token and tg_chat_id:
-                    msg = (
-                        f"🌐 <b>Dashboard Updated!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━━\n"
-                        f"✅ Latest data is now live\n"
-                        f"🔗 <a href='{url}'>{url}</a>\n"
-                        f"📅 {datetime.now().strftime('%d %b %Y, %I:%M %p')}\n"
-                        f"━━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🤖 Flipkart Automation Bot"
-                    )
-                    req.post(
-                        f"https://api.telegram.org/bot{tg_token}/sendMessage",
-                        json={"chat_id": tg_chat_id, "text": msg, "parse_mode": "HTML"},
-                        timeout=10
-                    )
-                    log("📱 Telegram notification sent with dashboard link!")
-            except Exception as e:
-                log(f"⚠️ Telegram notification failed: {e}")
+    # Copy to repo root for GitHub Pages
+    shutil.copy(share_path, Path(__file__).parent / "index.html")
+    log("✅ Copied to index.html (GitHub Pages root)")
+
+    DASHBOARD_URL = "https://manmeetsingh7-lab.github.io/flipkart-automation/"
+    log("🚀 Pushing to GitHub → GitHub Pages will auto-deploy...")
+
+    try:
+        git_dir = Path(__file__).parent
+        # Stage all changed files
+        sp.run(["git", "add", "index.html",
+                "dashboard_data.json", "inventory_data.json",
+                "dashboard.html", "dashboard_share.html"],
+               cwd=git_dir, capture_output=True)
+
+        # Commit with timestamp
+        commit_msg = f"Dashboard update: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        result = sp.run(["git", "commit", "-m", commit_msg],
+                       cwd=git_dir, capture_output=True, text=True)
+
+        if "nothing to commit" in (result.stdout + result.stderr):
+            log("ℹ️ No changes to deploy")
         else:
-            stderr = result.stderr or ""
-            stdout = result.stdout or ""
-            log(f"⚠️ Netlify deploy failed: {stderr[:200] or stdout[:200]}")
-            log("💡 Try manually: netlify deploy --dir . --prod")
-    except FileNotFoundError:
-        log("⚠️ Netlify CLI not found. Install with: npm install -g netlify-cli")
-        log(f"💡 Manual share: Open dashboard_share.html and drag to netlify.com/drop")
+            # Push to GitHub
+            push = sp.run(["git", "push", "origin", "main"],
+                         cwd=git_dir, capture_output=True, text=True)
+            if push.returncode == 0:
+                log(f"✅ Pushed to GitHub! GitHub Pages deploying (~60 seconds)...")
+                log(f"🌐 Dashboard: {DASHBOARD_URL}")
+            else:
+                log(f"⚠️ Git push failed: {push.stderr[:200]}")
+                log("💡 Run manually: git push origin main")
+
+        # Send Telegram notification
+        try:
+            import requests as req
+            tg_token   = os.getenv("TELEGRAM_TOKEN")
+            tg_chat_id = os.getenv("TELEGRAM_CHAT_ID")
+            if tg_token and tg_chat_id:
+                msg = (
+                    f"🌐 <b>Dashboard Updated!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"✅ Latest data is now live\n"
+                    f"🔗 <a href='{DASHBOARD_URL}'>{DASHBOARD_URL}</a>\n"
+                    f"📅 {datetime.now().strftime('%d %b %Y, %I:%M %p')}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🤖 Flipkart Automation Bot"
+                )
+                req.post(
+                    f"https://api.telegram.org/bot{tg_token}/sendMessage",
+                    json={"chat_id": tg_chat_id, "text": msg, "parse_mode": "HTML"},
+                    timeout=10
+                )
+                log("📱 Telegram notification sent!")
+        except Exception as e:
+            log(f"⚠️ Telegram notification failed: {e}")
+
+    except Exception as e:
+        log(f"⚠️ Deploy error: {e}")
     log("Starting server...")
     os.chdir(Path(__file__).parent)
     def start():

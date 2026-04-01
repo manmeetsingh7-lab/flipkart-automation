@@ -130,32 +130,82 @@ def run(args):
 
             # STEP 8: Click Growth in sidebar
             log("📊 Clicking Growth in sidebar...")
-            for selector in ["a[href*='growth']", "text=Growth"]:
+            growth_clicked = False
+            for selector in [
+                "a[href*='growth']",
+                "a[href*='Growth']",
+                "//a[contains(text(),'Growth')]",
+                "text=Growth",
+                "[data-testid*='growth']",
+            ]:
                 try:
                     el = page.locator(selector).first
-                    if el.is_visible(timeout=5000):
+                    if el.is_visible(timeout=4000):
                         el.click()
                         log("✅ Clicked Growth!")
+                        growth_clicked = True
                         break
                 except Exception:
                     continue
 
+            if not growth_clicked:
+                log("⚠️ Growth not found via selector — trying direct URL...")
+                page.goto("https://seller.flipkart.com/index.html#growth", wait_until="networkidle", timeout=20000)
+
+            time.sleep(3)
             dismiss_popups(page)
 
-            # STEP 9: Click Traffic Report tab immediately — don't wait for full page load
+            # Take screenshot to see what's on screen after clicking Growth
+            try:
+                page.screenshot(path="after_growth_click.png")
+                log("📸 Saved after_growth_click.png for debugging")
+            except Exception:
+                pass
+
+            # STEP 9: Click Traffic Report tab — try multiple selectors
             log("📈 Waiting for Traffic Report tab...")
-            for attempt in range(20):
-                try:
-                    traffic_tab = page.locator("text=Traffic Report").first
-                    if traffic_tab.is_visible(timeout=1500):
-                        traffic_tab.click()
-                        log(f"✅ Clicked Traffic Report! (attempt {attempt+1})")
-                        break
-                except Exception:
-                    pass
+            traffic_selectors = [
+                "text=Traffic Report",
+                "text=Traffic report",
+                "text=traffic report",
+                "a:has-text('Traffic')",
+                "[class*='tab']:has-text('Traffic')",
+                "//span[contains(text(),'Traffic')]",
+                "//a[contains(text(),'Traffic')]",
+                "//div[contains(text(),'Traffic Report')]",
+                "//button[contains(text(),'Traffic')]",
+            ]
+
+            traffic_found = False
+            for attempt in range(30):
+                for selector in traffic_selectors:
+                    try:
+                        traffic_tab = page.locator(selector).first
+                        if traffic_tab.is_visible(timeout=1000):
+                            traffic_tab.click()
+                            log(f"✅ Clicked Traffic Report! (attempt {attempt+1}, selector: {selector})")
+                            traffic_found = True
+                            break
+                    except Exception:
+                        continue
+                if traffic_found:
+                    break
+
+                # Every 5 attempts take a screenshot to see what's happening
+                if attempt % 5 == 4:
+                    try:
+                        page.screenshot(path=f"debug_attempt_{attempt+1}.png")
+                        log(f"📸 Saved debug_attempt_{attempt+1}.png")
+                        # Log all visible text to help debug
+                        all_text = page.locator("a, button, [class*='tab'], [class*='nav']").all_text_contents()
+                        visible = [t.strip() for t in all_text if t.strip() and len(t.strip()) < 50][:20]
+                        log(f"🔍 Visible elements: {visible}")
+                    except Exception:
+                        pass
                 time.sleep(1)
-            else:
-                raise Exception("Traffic Report tab not found after 20 attempts")
+
+            if not traffic_found:
+                raise Exception("Traffic Report tab not found after 30 attempts")
 
             time.sleep(2)
             page.wait_for_load_state("networkidle", timeout=20000)
