@@ -2712,11 +2712,17 @@ if __name__ == "__main__":
     p = build_data()
     html = generate_html(p)
 
-    # ── Inject Groq API key from .env ──
-    groq_key = os.getenv("GROQ_API_KEY") # No default "gsk_..." string here!
-    html = html.replace("window.AI_KEY = '%%AI_KEY%%';", f"window.AI_KEY = '{groq_key}';")
+    # ── Groq API key: loaded at runtime via /api/key — NEVER baked into HTML ──
+    groq_key = os.getenv("GROQ_API_KEY", "")
     if groq_key:
-        log("✅ Groq API key injected into dashboard")
+        log("✅ Groq API key found — will be served securely via /api/key (not embedded in HTML)")
+    else:
+        log("⚠️ GROQ_API_KEY not set in .env — AI Advisor will be disabled")
+    # Replace placeholder with a fetch call so the key is never in any file
+    html = html.replace(
+        "window.AI_KEY = '%%AI_KEY%%';",
+        "window.AI_KEY = null; fetch('/api/key').then(r=>r.text()).then(k=>{if(k.trim())window.AI_KEY=k.trim();}).catch(()=>{});"
+    )
 
     # ── Inject AI JS (uses raw string to avoid escape issues) ──
     html = html.replace("%%AI_JS%%", get_ai_js())
@@ -2753,15 +2759,34 @@ if __name__ == "__main__":
     shutil.copy(share_path, Path(__file__).parent / "index.html")
     log("✅ Copied to index.html (GitHub Pages root)")
 
+    # ── Ensure generated files and secrets are in .gitignore ──
+    gitignore_path = Path(__file__).parent / ".gitignore"
+    gitignore_entries = [
+        "# Generated dashboard files (may contain secrets — never commit)",
+        "dashboard.html",
+        "dashboard_share.html",
+        "dashboard_data.json",
+        "inventory_data.json",
+        "index.html",
+        "# Secret files",
+        ".env",
+        "*.env",
+    ]
+    existing = gitignore_path.read_text(encoding="utf-8") if gitignore_path.exists() else ""
+    additions = [e for e in gitignore_entries if e not in existing and not e.startswith("#")]
+    if additions:
+        with open(gitignore_path, "a", encoding="utf-8") as f:
+            f.write("\n# Added by generate_dashboard.py\n")
+            f.write("\n".join(gitignore_entries) + "\n")
+        log(f"✅ .gitignore updated — generated files will no longer be committed")
+
     DASHBOARD_URL = "https://manmeetsingh7-lab.github.io/flipkart-automation/"
     log("🚀 Pushing to GitHub → GitHub Pages will auto-deploy...")
 
     try:
         git_dir = Path(__file__).parent
-        # Stage all changed files
-        sp.run(["git", "add", "index.html",
-                "dashboard_data.json", "inventory_data.json",
-                "dashboard.html", "dashboard_share.html"],
+        # Stage only the Python script — NOT generated HTML/JSON (they may have had secrets)
+        sp.run(["git", "add", "generate_dashboard.py", ".gitignore"],
                cwd=git_dir, capture_output=True)
 
         # Commit with timestamp
@@ -2810,9 +2835,30 @@ if __name__ == "__main__":
         log(f"⚠️ Deploy error: {e}")
     log("Starting server...")
     os.chdir(Path(__file__).parent)
+    _groq_key_for_server = groq_key  # capture for server thread
+
     def start():
         import http.server, socketserver
-        with socketserver.TCPServer(("",8080),http.server.SimpleHTTPRequestHandler) as s:
+
+        class SecureHandler(http.server.SimpleHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == "/api/key":
+                    # Serve Groq key only to localhost — never stored in any file
+                    body = _groq_key_for_server.encode("utf-8")
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/plain; charset=utf-8")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.send_header("Cache-Control", "no-store")
+                    self.end_headers()
+                    self.wfile.write(body)
+                else:
+                    super().do_GET()
+
+            def log_message(self, format, *args):
+                # Suppress normal request logs (keep terminal clean)
+                pass
+
+        with socketserver.TCPServer(("", 8080), SecureHandler) as s:
             s.serve_forever()
     threading.Thread(target=start,daemon=True).start()
     time.sleep(1)
